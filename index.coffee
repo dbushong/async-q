@@ -92,16 +92,24 @@ module.exports = qasync =
 
   # type sig for series() & parallel()
   # [-> P *] -> P [*]
+  # {-> P *} -> P {*}
   series: (tasks) ->
     results = []
-    tasks.reduce(
-      (res, task) ->
-        res.then(task)
-           .then (val) ->
-             results.push val
-             results
+    arr = if tasks.constructor is Array
+      tasks
+    else
+      keys = (key for key of tasks)
+      (tasks[key] for key in keys)
+    arr.reduce(
+      (res, task) -> res.then(task).then results.push.bind(results)
       Q()
-    )
+    ).then ->
+      if keys
+        res = {}
+        res[key] = results[i] for key, i in keys
+        res
+      else
+        results
 
   parallel: (tasks) -> Q.all tasks.map (task) -> task()
 
