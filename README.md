@@ -26,9 +26,6 @@ If anyone missed those, let me know.
 This code only works on Node; I've not bothered to make it browser-safe in
 any way.
 
-It currently needs `Q.try()` wrapping around a lot of things; I'll get to that
-RSN.
-
 All of the below examples are in CoffeeScript because I like it.
 
 ## Usage

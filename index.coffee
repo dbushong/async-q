@@ -13,7 +13,7 @@ aliases =
   every:        ['all']
 
 consoleFn = (name) -> (fn, args...) ->
-  fn(args...)
+  Q.fapply(fn, args)
     .catch((err) -> console?.error? err)
     .then((res) -> console?[name]? res)
 
@@ -24,7 +24,7 @@ processArrayOrObject = (tasks, fn) ->
     keys = (key for key of tasks)
     (tasks[key] for key in keys)
 
-  fn(arr).then (results) ->
+  Q.try(fn, arr).then (results) ->
     if keys
       res = {}
       res[key] = results[i] for key, i in keys
@@ -32,30 +32,30 @@ processArrayOrObject = (tasks, fn) ->
     else
       results
 
-module.exports = qasync =
+module.exports = async =
   # type sig for each{,Series}()
   # [a] -> (a -> P b) -> P [b]
-  each: (arr, iterator) -> Q.all arr.map iterator
+  each: (arr, iterator) -> Q.all arr.map (a) -> Q.try iterator, a
 
-  eachSeries: (arr, iterator) -> qasync.series arr.map (a) -> -> iterator a
+  eachSeries: (arr, iterator) -> async.series arr.map (a) -> -> iterator a
 
   # [a] -> Number -> (a -> P b) -> P [b]
   eachLimit: (arr, limit, iterator) ->
-    qasync.parallelLimit arr.map((a) -> -> iterator a), limit
+    async.parallelLimit arr.map((a) -> -> iterator a), limit
 
   # type sig for {filter,reject}{,Series}()
   # [a] -> (a -> P Boolean) -> P [a]
   filter: (arr, iterator, reject=false) ->
-    Q.all(arr.map (a) -> iterator(a).then (ok) -> [ok, a])
+    Q.all(arr.map (a) -> Q.try(iterator, a).then (ok) -> [ok, a])
      .then (res) -> res.filter(([ok]) -> reject ^ ok).map ([ok, a]) -> a
 
   filterSeries: (arr, iterator, reject=false) ->
-    qasync.series(arr.map (a) -> -> iterator(a).then (ok) -> [ok, a])
+    async.series(arr.map (a) -> -> iterator(a).then (ok) -> [ok, a])
           .then (res) -> res.filter(([ok]) -> reject ^ ok).map ([ok, a]) -> a
 
-  reject: (arr, iterator) -> qasync.filter arr, iterator, true
+  reject: (arr, iterator) -> async.filter arr, iterator, true
 
-  rejectSeries: (arr, iterator) -> qasync.filterSeries arr, iterator, true
+  rejectSeries: (arr, iterator) -> async.filterSeries arr, iterator, true
 
   # type sig for reduce{,Right}()
   # [a] -> b -> (b -> a -> P b) -> P b
@@ -65,45 +65,44 @@ module.exports = qasync =
       Q(memo)
     )
 
-  reduceRight: (arr, memo, iterator) -> qasync.reduce arr, memo, iterator, true
+  reduceRight: (arr, memo, iterator) -> async.reduce arr, memo, iterator, true
 
   # type sig for detect{,Series}()
   # [a] -> (a -> P Boolean) -> P a
-  detect: (arr, iterator) -> qasync.filter(arr, iterator).get 0
+  detect: (arr, iterator) -> async.filter(arr, iterator).get 0
 
-  detectSeries: (arr, iterator) -> qasync.filterSeries(arr, iterator).get 0
+  detectSeries: (arr, iterator) -> async.filterSeries(arr, iterator).get 0
 
   # [a] -> (a -> P b) -> [a]
   # basically a swartzian transform
   sortBy: (arr, iterator) ->
-    Q.all(arr.map (a) -> iterator(a).then (b) -> [b, a])
-     .then (res) ->
-       res.sort((x, y) ->
-         if x[0] < y[0]
-           -1
-         else if x[0] > y[0]
-           1
-         else
-           0
-       ).map (x) -> x[1]
+    Q.all(arr.map (a) -> Q.try(iterator, a).then (b) -> [b, a]).then (res) ->
+      res.sort((x, y) ->
+        if x[0] < y[0]
+          -1
+        else if x[0] > y[0]
+          1
+        else
+          0
+      ).map (x) -> x[1]
 
   # type sig for some() & every()
   # [a] -> (a -> P Boolean) -> P Boolean
   # TODO: have these bail "early" when reach known state?
   some: (arr, iterator) ->
-    qasync.filter(arr, iterator).then (passed) -> passed.length > 0
+    async.filter(arr, iterator).then (passed) -> passed.length > 0
 
   every: (arr, iterator) ->
-    qasync.reject(arr, iterator).then (rejected) -> rejected.length is 0
+    async.reject(arr, iterator).then (rejected) -> rejected.length is 0
 
   # type sig for concat{,Series}()
   # [a] -> (a -> P [b]) -> [b]
   concat: (arr, iterator) ->
-    Q.all(arr.map(iterator))
-     .then (res) -> res.reduce ((a,b) -> a.concat b), []
+    async.map(arr, iterator)
+      .then (res) -> res.reduce ((a,b) -> a.concat b), []
 
   concatSeries: (arr, iterator) ->
-    qasync.reduce arr, [], (res, a) -> iterator(a).then (bs) -> res.concat bs
+    async.reduce arr, [], (res, a) -> iterator(a).then (bs) -> res.concat bs
 
   # type sig for series() & parallel()
   # [-> P *] -> P [*]
@@ -126,16 +125,16 @@ module.exports = qasync =
   # (->) -> (-> P) -> P
   whilst: (test, fn, invert=false) ->
     if invert ^ test()
-      fn().then -> qasync.whilst test, fn
+      Q.try(fn).then -> async.whilst test, fn
     else
       Q()
-  until: (test, fn) -> whilst test, fn, true
+  until: (test, fn) -> async.whilst test, fn, true
 
   # (-> P) -> (->) -> P
-  doWhilst: (fn, test) -> fn().then -> qasync.whilst test, fn
-  doUntil:  (fn, test) -> fn().then -> qasync.whilst test, fn, true
+  doWhilst: (fn, test) -> fn().then -> async.whilst test, fn
+  doUntil:  (fn, test) -> fn().then -> async.whilst test, fn, true
 
-  forever: (fn) -> fn().then fn
+  forever: (fn) -> Q.try(fn).then fn
 
   # you'd be silly to use this instead of just .then().then(), but hey
   # [(* -> P *)] -> P *
@@ -144,19 +143,19 @@ module.exports = qasync =
   # [(* -> P *)]... -> (* -> P *)
   compose: (fns...) -> (arg) ->
     that = this
-    qasync.waterfall fns.concat(-> Q arg).reverse().map (fn) -> ->
+    async.waterfall fns.concat(-> Q arg).reverse().map (fn) -> ->
       fn.apply(that, arguments)
 
   applyEach: (fns, args...) ->
-    doApply = (a...) -> Q.all fns.map (fn) -> fn a...
-    if args
+    doApply = (a...) -> Q.all fns.map (fn) -> Q.fapply fn, a
+    if args.length
       doApply args...
     else
       doApply
 
   applyEachSeries: (fns, args...) ->
-    doApply = (a...) -> qasync.series fns.map (fn) -> fn a...
-    if args
+    doApply = (a...) -> async.series fns.map (fn) -> -> fn a...
+    if args.length
       doApply args...
     else
       doApply
@@ -194,7 +193,7 @@ module.exports = qasync =
           task = q.tasks.shift()
           q.empty?() if q.tasks.length is 0
           workers++
-          Q.try(-> worker(task.data))
+          Q.try(worker, task.data)
             .catch(task.defer.reject.bind task.defer)
             .then (res) ->
               workers--
@@ -251,9 +250,9 @@ module.exports = qasync =
   nextTick: -> throw new Error 'NOT YET(?) IMPLEMENTED'
 
   # Number -> (-> P) -> P
-  times: (n, fn) -> qasync.parallel [fn for i in 1..n]
+  times: (n, fn) -> async.parallel [fn for i in 1..n]
 
-  timesSeries: (n, fn) -> qasync.series [fn for i in 1..n]
+  timesSeries: (n, fn) -> async.series [fn for i in 1..n]
 
   memoize: (fn, hasher) ->
     hasher ||= (x) -> x
@@ -261,7 +260,7 @@ module.exports = qasync =
     mem = (args...) ->
       key = hasher args...
       return Q cache[key] if key of cache
-      fn(args...).then (res) -> cache[key] = res
+      Q.fapply(fn, args).then (res) -> cache[key] = res
     mem.unmemoized = fn
     mem.memo = cache
     mem
@@ -273,4 +272,4 @@ module.exports = qasync =
   dir: consoleFn 'dir'
 
 for orig, akas of aliases
-  qasync[aka] = qasync[orig] for aka in akas
+  async[aka] = async[orig] for aka in akas
