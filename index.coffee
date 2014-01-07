@@ -149,7 +149,47 @@ module.exports = qasync =
 
   queue: -> throw new Error 'NOT YET IMPLEMENTED'
   cargo: -> throw new Error 'NOT YET IMPLEMENTED'
-  auto:  -> throw new Error 'NOT YET IMPLEMENTED'
+
+  # { [String..., (* -> P *)] } -> P { * }
+  auto: (tasks) ->
+    total    = (key for own key of tasks).length
+    qdef     = Q.defer()
+    results  = {}
+    running  = {}
+    finished = false
+
+    do checkPending = ->
+      return if finished
+
+      # check if we're done
+      done = (key for key of results)
+      if done.length is total
+        qdef.resolve results
+        finished = true
+        return
+
+      for name, stuff of tasks
+        continue if name in done # skip ones we've finished
+
+        if 'function' is typeof stuff
+          reqs = []
+          fn   = stuff
+        else
+          reqs = stuff[..]
+          fn   = reqs.pop()
+
+        # if all requisites are satisifed for this task
+        if !running[name] and reqs.reduce ((ok,req) -> ok and req in done), true
+          do (name) ->
+            running[name] = true
+            Q.try(fn, results)
+              .catch(qdef.reject.bind qdef)
+              .then (res) ->
+                results[name] = res
+                checkPending()
+              .done()
+
+    qdef.promise
 
   # callback-specific utility functions: won't implement?
   iterator: -> throw new Error 'NOT YET(?) IMPLEMENTED'
