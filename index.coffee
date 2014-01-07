@@ -115,14 +115,11 @@ module.exports = qasync =
       fn().then -> qasync.whilst test, fn
     else
       Q()
-
-  # (-> P) -> (->) -> P
-  doWhilst: (fn, test, invert=false) ->
-    fn().then -> qasync.whilst test, fn, invert
-
   until: (test, fn) -> whilst test, fn, true
 
-  doUntil: (fn, test) -> doWhilst fn, test, true
+  # (-> P) -> (->) -> P
+  doWhilst: (fn, test) -> fn().then -> qasync.whilst test, fn
+  doUntil:  (fn, test) -> fn().then -> qasync.whilst test, fn, true
 
   forever: (fn) -> fn().then fn
 
@@ -147,7 +144,47 @@ module.exports = qasync =
     else
       doApply
 
-  queue: -> throw new Error 'NOT YET IMPLEMENTED'
+  # (a -> P) -> Number -> P
+  queue: (worker, concurrency=1) ->
+    _insert = (data, op='push') ->
+      data     = [data] unless data.constructor is Array
+      promises = []
+      for task in data
+        item = data: task, defer: Q.defer()
+        promises.push item.defer.promise
+        q.tasks[op] item
+
+        q.saturated?() if q.tasks.length is concurrency
+
+        process.nextTick q.process
+
+      Q.all promises
+
+    workers = 0
+
+    q =
+      concurrency: concurrency
+      tasks:     []
+      saturated: null
+      empty:     null
+      drain:     null
+      push:      (data) -> _insert data
+      unshift:   (data) -> _insert data, 'unshift'
+      length:    -> q.tasks.length
+      running:   -> workers
+      process:   ->
+        if workers < q.concurrency and q.tasks.length
+          task = q.tasks.shift()
+          q.empty?() if q.tasks.length is 0
+          workers++
+          Q.try(-> worker(task.data))
+            .catch(task.defer.reject.bind task.defer)
+            .then (res) ->
+              workers--
+              task.defer.resolve res
+              q.drain?() if q.tasks.length + workers is 0
+              q.process()
+
   cargo: -> throw new Error 'NOT YET IMPLEMENTED'
 
   # { [String..., (* -> P *)] } -> P { * }
