@@ -13,9 +13,24 @@ aliases =
   every:        ['all']
 
 consoleFn = (name) -> (fn, args...) ->
-  fn()
+  fn(args...)
     .catch((err) -> console?.error? err)
     .then((res) -> console?[name]? res)
+
+processArrayOrObject = (tasks, fn) ->
+  arr = if tasks.constructor is Array
+    tasks
+  else
+    keys = (key for key of tasks)
+    (tasks[key] for key in keys)
+
+  fn(arr).then (results) ->
+    if keys
+      res = {}
+      res[key] = results[i] for key, i in keys
+      res
+    else
+      results
 
 module.exports = qasync =
   # type sig for each{,Series}()
@@ -94,26 +109,17 @@ module.exports = qasync =
   # [-> P *] -> P [*]
   # {-> P *} -> P {*}
   series: (tasks) ->
-    results = []
-    arr = if tasks.constructor is Array
-      tasks
-    else
-      keys = (key for key of tasks)
-      (tasks[key] for key in keys)
-    arr.reduce(
-      (res, task) -> res.then(task).then results.push.bind(results)
-      Q()
-    ).then ->
-      if keys
-        res = {}
-        res[key] = results[i] for key, i in keys
-        res
-      else
-        results
+    processArrayOrObject tasks, (arr) ->
+      results = []
+      arr.reduce(
+        (res, task) -> res.then(task).then results.push.bind(results)
+        Q()
+      ).then(-> results)
 
-  parallel: (tasks) -> Q.all tasks.map (task) -> task()
+  parallel: (tasks) -> processArrayOrObject tasks, (arr) -> Q.all arr.map Q.try
 
-  parallelLimit: (tasks, limit) -> Q.all tasks.map throat limit
+  parallelLimit: (tasks, limit) ->
+    processArrayOrObject tasks, (arr) -> Q.all arr.map throat limit
 
   # FIXME: should we put a limit on these? JS probably doesn't have tail
   # recursion optimization
@@ -136,7 +142,10 @@ module.exports = qasync =
   waterfall: (tasks) -> tasks.reduce ((res, task) -> res.then(task)), Q()
 
   # [(* -> P *)]... -> (* -> P *)
-  compose: (fns...) -> (arg) -> qasync.waterfall fns.concat(-> Q arg).reverse()
+  compose: (fns...) -> (arg) ->
+    that = this
+    qasync.waterfall fns.concat(-> Q arg).reverse().map (fn) -> ->
+      fn.apply(that, arguments)
 
   applyEach: (fns, args...) ->
     doApply = (a...) -> Q.all fns.map (fn) -> fn a...
@@ -166,7 +175,7 @@ module.exports = qasync =
 
         process.nextTick q.process
 
-      Q.all promises
+      if promises.length is 1 then promises[0] else promises
 
     workers = 0
 

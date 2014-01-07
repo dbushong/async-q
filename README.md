@@ -66,7 +66,7 @@ async = require 'q-async'
 
 * [series](#series)
 * [parallel](#parallel)
-* [parallelLimit](#parallellimittasks-limit-callback)
+* [parallelLimit](#parallelLimit)
 * [whilst](#whilst)
 * [doWhilst](#doWhilst)
 * [until](#until)
@@ -193,7 +193,7 @@ async.map(['file1','file2','file3'], fs.stat)
 
 # this is pretty much the same as:
 
-['file1','file2','file3'].map(fs.stat).all()
+Q.all(['file1','file2','file3'].map(fs.stat))
   .then (results) ->
     # results is now an array of stats for each file
   .done()
@@ -412,7 +412,7 @@ __Alias:__ any
 Returns a promise for a boolean saying whether or not at least one element in
 the array satisfies an async test.
 
-Once any iterator call returns true, the main callback is immediately called.
+Once any iterator call returns true, the main promise is immediately resolved.
 
 That previous sentence is not yet true, but is aspirational.  This is currently
 implemented as a test on whether `.filter()`'s `.length > 0`
@@ -504,9 +504,8 @@ function has completed.  Returns a promise for an array containing the
 ordered results.
 
 It is also possible to use an object instead of an array. Each property will be
-run as a function and the results will be passed to the final callback as an
-object instead of an array. This can be a more readable way of handling results
-from async.series.
+run as a function and the results will be resolved as an object instead of an
+array. This can be a more readable way of handling results from async.series.
 
 __Arguments__
 
@@ -527,7 +526,7 @@ async.series([
     # results is now equal to ['one', 'two']
   .done()
 
-// an example using an object instead of an array
+# an example using an object instead of an array
 async.series({
   one: -> Q.delay(200).thenResolve(1)
   two: -> Q.delay(100).thenResolve(2)
@@ -535,3 +534,470 @@ async.series({
     # results is now equal to: {one: 1, two: 2}
   .done()
 ```
+
+---------------------------------------
+
+<a name="parallel" />
+### parallel(tasks)
+
+Run an array of functions in parallel, without waiting until the previous
+function has completed.  Returns a promise for an array of the results.
+
+It is also possible to use an object instead of an array. Each property will be
+run as a function and the promised results will be an object instead of an
+array. This can be a more readable way of handling results from async.parallel.
+
+Note: this isn't something you commonly want to do in Q-land; an array of
+promises and `Q.all()` usually works just fine, but, you know, completeness and
+all.
+
+__Arguments__
+
+* tasks - An array or object containing functions to run, each function
+  should return a promise for an optional value.
+
+__Example__
+
+```coffee
+async.parallel([
+  -> Q.delay(200).thenResolve('one')
+  -> Q.delay(100).thenResolve('two')
+]).then (results) ->
+  # the results array will equal ['one','two'] even though
+  # the second function had a shorter timeout.
+  .done()
+
+# an example using an object instead of an array
+async.parallel({
+  one: -> Q.delay(200).thenResolve(1)
+  two: -> Q.delay(100).thenResolve(2)
+}).then (results) ->
+  # results is now equals to: {one: 1, two: 2}
+  .done()
+```
+
+---------------------------------------
+
+<a name="parallelLimit" />
+### parallelLimit(tasks, limit)
+
+The same as parallel only the tasks are executed in parallel with a maximum of
+"limit" tasks executing at any time.  Returns a promise for an array or object,
+depending on which was passed.
+
+Note that the tasks are not executed in batches, so there is no guarantee that 
+the first "limit" tasks will complete before any others are started.
+
+__Arguments__
+
+* tasks - An array or object containing functions to run, each function must
+  return a promise for an optional result.
+* limit - The maximum number of tasks to run at any time.
+
+---------------------------------------
+
+<a name="whilst" />
+### whilst(test, fn)
+
+Repeatedly call fn, while test returns true.  Returns promise that is fulfilled
+when test fails.
+
+__Arguments__
+
+* test() - synchronous truth test to perform before each execution of fn.
+* fn - A function to call each time the test passes. The function must return
+  a promise that is fulfilled when it is done.
+
+__Example__
+
+```coffee
+count = 0
+
+async.whilst((-> count < 5), -> count++; Q.delay(1000))
+  .then ->
+    # 5 seconds have passed
+  .done()
+```
+
+---------------------------------------
+
+<a name="doWhilst" />
+### doWhilst(fn, test)
+
+The post check version of whilst. To reflect the difference in the order of
+operations `test` and `fn` arguments are switched. `doWhilst` is to `whilst` as
+`do while` is to `while` in plain JavaScript.
+
+---------------------------------------
+
+<a name="until" />
+### until(test, fn)
+
+Repeatedly call fn, until test returns true.
+
+The inverse of async.whilst.
+
+---------------------------------------
+
+<a name="doUntil" />
+### doUntil(fn, test)
+
+Like doWhilst except the test is inverted. Note the argument ordering differs
+from `until`.
+
+---------------------------------------
+
+<a name="forever" />
+### forever(fn)
+
+Calls the promise-returning function 'fn' repeatedly, in series, indefinitely.
+
+---------------------------------------
+
+<a name="waterfall" />
+### waterfall(tasks)
+
+Runs an array of functions in series, each passing their results to the next in
+the array.  Returns a promise for the result of the final function.
+
+Note: I'm not sure why you'd really want this in practice; you usually just
+want to do: `foo().then((res1) -> ...).then((res2) -> ...)...`
+
+__Arguments__
+
+* tasks - An array of functions to run, each function must return a promise
+  for a result that will be passed to the next function.
+
+__Example__
+
+```coffee
+async.waterfall([
+  -> Q ['one', 'two']
+  ([arg1, arg2]) -> Q 'three'
+  (arg1) ->
+    # arg1 now equals 'three'
+    Q 'done'
+]).then (result) ->
+  # result now equals 'done'    
+  .done()
+```
+
+---------------------------------------
+
+<a name="compose" />
+### compose(fn1, fn2...)
+
+Creates a function which is a composition of the passed asynchronous
+functions. Each function consumes the promised return value of the function that
+follows. Composing functions f(), g() and h() would produce the result of
+f(g(h())), only this version uses promises to obtain the return values.
+
+Each function is executed with the `this` binding of the composed function.
+
+__Arguments__
+
+* functions... - the asynchronous functions to compose
+
+__Example__
+
+```coffee
+add1 = (n) -> Q.delay(10).thenResolve(n + 1)
+
+mul3 = (n) -> Q.delay(10).thenResolve(n * 3)
+
+add1mul3 = async.compose mul3, add1
+
+add1mul3(4)
+  .then (result) ->
+    # result now equals 15
+  .done()
+```
+
+---------------------------------------
+
+<a name="applyEach" />
+### applyEach(fns, args...)
+
+Applies the provided arguments to each function in the array, resolving the
+returned promise after all functions have completed.
+If you only provide the first argument then it will return a function which
+lets you pass in the arguments as if it were a single function call.
+
+__Arguments__
+
+* fns - the promise-returning functions to all call with the same arguments
+* args... - any number of separate arguments to pass to the function
+
+__Example__
+
+```coffee
+async.applyEach([enableSearch, updateSchema], 'bucket')
+
+# partial application example:
+async.each(
+  buckets,
+  async.applyEach([enableSearch, updateSchema])
+)
+```
+
+---------------------------------------
+
+<a name="applyEachSeries" />
+### applyEachSeries(arr, iterator)
+
+The same as applyEach only the functions are applied in series.
+
+---------------------------------------
+
+<a name="queue" />
+### queue(worker, concurrency)
+
+Creates a queue object with the specified concurrency. Tasks added to the
+queue will be processed in parallel (up to the concurrency limit). If all
+workers are in progress, the task is queued until one is available. Once
+a worker has completed a task, promise returned from its addition is resolved.
+
+__Arguments__
+
+* worker(task) - An promise-returning function for processing a queued
+  task, which must resolve its promise when finished.
+* concurrency - An integer for determining how many worker functions should be
+  run in parallel.
+
+__Queue objects__
+
+The queue object returned by this function has the following properties and
+methods:
+
+* length() - a function returning the number of items waiting to be processed.
+* concurrency - an integer for determining how many worker functions should be
+  run in parallel. This property can be changed after a queue is created to
+  alter the concurrency on-the-fly.
+* push(task) - add a new task to the queue and return a promise which is 
+  resolved once the worker has finished processing the task.
+  Instead of a single task, an array of tasks can be submitted and an array
+  of promises will be returned which can be individually handled or bundled
+  with `Q.all()`
+* unshift(task) - same as push but add a new task to the front of the queue.
+* saturated - a callback that is called when the queue length hits the
+  concurrency and further tasks will be queued
+* empty - a callback that is called when the last item from the queue is given
+  to a worker
+* drain - a callback that is called when the last item from the queue has
+  returned from the worker
+
+__Example__
+
+```coffee
+# create a queue object with concurrency 2
+
+q = async.queue (({name}) -> console.log "hello #{name}"), 2
+
+# assign a callback
+q.drain = -> console.log 'all items have been processed'
+
+# add some items to the queue
+
+q.push(name: 'foo').then(-> console.log 'finished processing foo').done()
+q.push(name: 'bar').then(-> console.log 'finished processing bar').done()
+
+# add some items to the queue (batch-wise)
+
+q.push([{name: 'baz'},{name: 'bay'},{name: 'bax'}]).forEach (p) ->
+  p.then(-> console.log 'finished processing baz, bay, OR bax')
+   .done()
+
+# add some items to the queue (batch-wise) and wait for all to finish
+
+Q.all(q.push([{name: 'baz'},{name: 'bay'},{name: 'bax'}]))
+  .then(-> console.log 'finished processing baz, bay, AND bax')
+  .done()
+
+# add some items to the front of the queue
+
+q.unshift(name: 'garply')
+  .then(-> console.log 'finished processing garply')
+  .done()
+```
+
+---------------------------------------
+
+<a name="auto" />
+### auto(tasks)
+
+Determines the best order for running functions based on their requirements.
+Each function can optionally depend on other functions being completed first,
+and each function is run as soon as its requirements are satisfied.
+Functions receive an object containing the results of functions which have
+completed so far.  Returns a promise for the final version of the results
+object.
+
+__Arguments__
+
+* tasks - An object literal containing named functions or an array of
+  requirements, with the function itself the last item in the array. The key
+  used for each function or array is used when specifying requirements. The 
+  function receives a results object, containing the results of
+  the previously executed functions, keyed by their name.
+
+__Example__
+
+```coffee
+async.auto({
+  get_data: ->
+    # async code to get some data
+  make_folder: ->
+    # async code to create a directory to store a file in
+    # this is run at the same time as getting the data
+  write_file: [
+    'get_data'
+    'make_folder'
+    -> 
+      # once there is some data and the directory exists,
+      # write the data to a file in the directory
+      filename
+  ]
+  email_link: [
+    'write_file'
+    (results) ->
+      # once the file is written let's email a link to it...
+      # results.write_file contains the filename returned by write_file.
+  ]
+})
+```
+
+This is a fairly trivial example, but to do this using the basic parallel and
+series functions would look like this:
+
+```coffee
+async.parallel([
+  ->
+    # async code to get some data
+  ->
+    # async code to create a directory to store a file in
+    # this is run at the same time as getting the data
+])
+  .then ->
+    async.waterfall [
+      ->
+        # once there is some data and the directory exists,
+        # write the data to a file in the directory
+        filename
+      (results) ->
+        # once the file is written let's email a link to it...
+    ]
+  .done()
+```
+
+For a complicated series of async tasks using the auto function makes adding
+new tasks much easier and makes the code more readable.
+
+---------------------------------------
+
+<a name="times" />
+### times(n, fn)
+
+Calls the fn n times and accumulates results in the same manner
+you would use with async.map.
+
+__Arguments__
+
+* n - The number of times to run the function.
+* fn - The promise-returning function to call n times.
+
+__Example__
+
+```coffee
+# Pretend this is some complicated async factory
+createUser = (id) -> Q { id: "user#{id}" }
+# generate 5 users
+async.times(5, createUser)
+  .then (users) ->
+    # we should now have 5 users
+  .done()
+```
+
+---------------------------------------
+
+<a name="timesSeries" />
+### timesSeries(n, fn)
+
+The same as times only the iterator is applied to each item in the array in
+series. The next iterator is only called once the current one has completed
+processing. The results array will be in the same order as the original.
+
+## Utils
+
+<a name="memoize" />
+### memoize(fn, [hasher])
+
+Caches the results of an async function. When creating a hash to store function
+results against an optional hash function can be used.
+
+The cache of results is exposed as the `memo` property of the function returned
+by `memoize`.
+
+__Arguments__
+
+* fn - the function you to proxy and cache results from.
+* hasher - an optional function for generating a custom hash for storing
+  results, it has all the arguments applied to it apart from the callback, and
+  must be synchronous.
+
+__Example__
+
+```coffee
+slow_fn = (name) ->
+  # do something
+  Q result
+fn = async.memoize slow_fn
+
+# fn can now be used as if it were slow_fn
+fn('some name').then(-> ...).done()
+```
+
+---------------------------------------
+
+<a name="unmemoize" />
+### unmemoize(fn)
+
+Undoes a memoized function, returning the original, unmemoized form. Comes
+in handy in tests.
+
+__Arguments__
+
+* fn - the memoized function
+
+---------------------------------------
+
+<a name="log" />
+### log(function, arguments...)
+
+Logs the result of an async function to the console. Only works in node.js or
+in browsers that support console.log and console.error (such as FF and Chrome).
+Returns a promise for further chaining.
+
+__Arguments__
+
+* function - The function you want to eventually apply all arguments to.
+* arguments... - Any number of arguments to apply to the function.
+
+__Example__
+
+```coffee
+hello = (name) -> Q.delay(1000).thenResolve "hello #{name}"
+```
+
+```
+coffee> async.log hello, 'world'
+[object Object]
+hello world
+```
+
+---------------------------------------
+
+<a name="dir" />
+### dir(function, arguments...)
+
+The same as `async.log` except it calls `console.dir()` instead
+of `console.log()`
