@@ -169,11 +169,8 @@ module.exports = async =
         item = data: task, defer: Q.defer()
         promises.push item.defer.promise
         q.tasks[op] item
-
         q.saturated?() if q.tasks.length is concurrency
-
         process.nextTick q.process
-
       if promises.length is 1 then promises[0] else promises
 
     workers = 0
@@ -201,7 +198,40 @@ module.exports = async =
               q.drain?() if q.tasks.length + workers is 0
               q.process()
 
-  cargo: -> throw new Error 'NOT YET IMPLEMENTED'
+  # (a -> P) -> Number -> P
+  cargo: (worker, payload=null) ->
+    working = false
+    tasks   = []
+    cargo   =
+      tasks:     tasks
+      payload:   payload
+      saturated: null
+      empty:     null
+      drain:     null
+      length:    -> tasks.length
+      running:   -> working
+      push: (data) ->
+        data     = [data] unless data.contructor is Array
+        promises = data.map (task) ->
+          d = Q.defer()
+          tasks.push data: task, defer: d
+          d.promise
+        cargo.saturated?() if tasks.length is payload
+        process.nextTick cargo.process
+        if promises.length is 1 then promises[0] else promises
+      process: ->
+        return if working
+        return cargo.drain?() if tasks.length is 0
+        ts = if payload? then tasks.splice 0, payload else tasks.splice 0
+        cargo.empty?()
+        working = true
+        Q.try(worker, ts.map (t) -> t.data)
+         .catch (err) ->
+           ts.forEach (task) -> task.defer.reject err
+         .then (res) ->
+           working = false
+           ts.forEach (task) -> task.defer.resolve res
+           cargo.process()
 
   # { [String..., (* -> P *)] } -> P { * }
   auto: (tasks) ->

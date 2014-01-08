@@ -19,11 +19,10 @@ implement with vanilla Q, I'd say:
 
 ## Limitations
 
-The only missing functions are, at the moment `cargo()` and a few of the
-internal utility routines like `iterator()`, `apply()`, and `nextTick()`
-If anyone missed those, let me know.
+The only missing functions are internal utility routines like `iterator()`,
+`apply()`, and `nextTick()`  If anyone misses those, let me know.
 
-This code only works on Node; I've not bothered to make it browser-safe in
+This code only works on node; I've not bothered to make it browser-safe in
 any way.
 
 All of the below examples are in CoffeeScript because I like it.
@@ -815,6 +814,61 @@ Q.all(q.push([{name: 'baz'},{name: 'bay'},{name: 'bax'}]))
 q.unshift(name: 'garply')
   .then(-> console.log 'finished processing garply')
   .done()
+```
+
+---------------------------------------
+
+<a name="cargo" />
+### cargo(worker, [payload])
+
+Creates a cargo object with the specified payload. Tasks added to the
+cargo will be processed altogether (up to the payload limit). If the
+worker is in progress, the task is queued until it is available. Once
+the worker has completed some tasks, all of the promises returned from calls
+to push will be resolved.
+
+__Arguments__
+
+* worker(tasks) - A promise-returning function for processing an array of
+  queued tasks.
+* payload - An optional integer for determining how many tasks should be
+  processed per round; if omitted, the default is unlimited.
+
+__Cargo objects__
+
+The cargo object returned by this function has the following properties and
+methods:
+
+* length() - a function returning the number of items waiting to be processed.
+* payload - an integer for determining how many tasks should be
+  process per round. This property can be changed after a cargo is created to
+  alter the payload on-the-fly.
+* push(task) - add a new task to the queue, returns a promise that is resolved
+  once the worker has finished processing the task.
+  Instead of a single task, an array of tasks can be submitted in which case
+  an array of promises will be returned.
+* saturated - a callback that is called when the queue length hits the
+  concurrency and further tasks will be queued
+* empty - a callback that is called when the last item from the queue is given
+  to a worker
+* drain - a callback that is called when the last item from the queue has
+  returned from the worker
+
+__Example__
+
+```coffee
+# create a cargo object with payload 2
+
+cargo = async.cargo(
+  (tasks) -> console.log "hello #{name}" for {name} in tasks
+  2
+)
+
+# add some items
+
+cargo.push(name: 'foo').then(-> console.log 'finished processing foo').done()
+cargo.push(name: 'bar').then(-> console.log 'finished processing bar').done()
+cargo.push(name: 'baz').then(-> console.log 'finished processing baz').done()
 ```
 
 ---------------------------------------
