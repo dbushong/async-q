@@ -481,6 +481,7 @@ fs = require 'q-io/fs'
 async.concat(['dir1','dir2','dir3'], fs.list)
   .then (files) ->
     # files is now a list of filenames that exist in the 3 directories
+  .done()
 ```
 
 ---------------------------------------
@@ -727,13 +728,13 @@ __Arguments__
 __Example__
 
 ```coffee
-async.applyEach([enableSearch, updateSchema], 'bucket')
+async.applyEach([enableSearch, updateSchema], 'bucket').done()
 
 # partial application example:
 async.each(
   buckets,
   async.applyEach([enableSearch, updateSchema])
-)
+).done()
 ```
 
 ---------------------------------------
@@ -914,7 +915,7 @@ async.auto({
       # once the file is written let's email a link to it...
       # results.write_file contains the filename returned by write_file.
   ]
-})
+}).done()
 ```
 
 This is a fairly trivial example, but to do this using the basic parallel and
