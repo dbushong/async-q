@@ -2,9 +2,9 @@ Q      = require 'q'
 throat = require 'throat'
 
 aliases =
-  each:         ['map']
-  eachSeries:   ['mapSeries']
-  eachLimit:    ['mapLimit']
+  each:         ['map',       'forEach']
+  eachSeries:   ['mapSeries', 'forEachSeries']
+  eachLimit:    ['mapLimit',  'forEachLimit']
   filter:       ['select']
   filterSeries: ['selectSeries']
   reduce:       ['inject', 'foldl']
@@ -118,7 +118,11 @@ module.exports = async =
   parallel: (tasks) -> processArrayOrObject tasks, (arr) -> Q.all arr.map Q.try
 
   parallelLimit: (tasks, limit) ->
-    processArrayOrObject tasks, (arr) -> Q.all arr.map throat limit
+    processArrayOrObject tasks, (arr) ->
+      if limit > 0
+        Q.all arr.map throat limit
+      else
+        Q []
 
   # FIXME: should we put a limit on these? JS probably doesn't have tail
   # recursion optimization
