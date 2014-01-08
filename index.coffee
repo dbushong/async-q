@@ -134,7 +134,7 @@ module.exports = async =
   doWhilst: (fn, test) -> fn().then -> async.whilst test, fn
   doUntil:  (fn, test) -> fn().then -> async.whilst test, fn, true
 
-  forever: (fn) -> Q.try(fn).then fn
+  forever: (fn) -> Q.try(fn).then -> async.forever fn
 
   # you'd be silly to use this instead of just .then().then(), but hey
   # [(* -> P *)] -> P *

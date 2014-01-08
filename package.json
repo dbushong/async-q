@@ -6,13 +6,18 @@
   "author": "David Bushong <david@bushong.net>",
   "license": "MIT",
   "scripts": {
-    "prepublish": "./node_modules/.bin/coffee -bc index.coffee"
+    "prepublish": "./node_modules/.bin/coffee -bc index.coffee",
+    "test": "make test"
   },
   "dependencies": {
     "throat": "~1.0.0",
     "q": "~1.0.0"
   },
   "devDependencies": {
-    "coffee-script": "~1.6.3"
+    "coffee-script": "~1.6.3",
+    "chai": "~1.8.1",
+    "chai-as-promised": "~4.1.0",
+    "mocha-as-promised": "~2.0.0",
+    "mocha": "~1.16.2"
   }
 }
