@@ -4,7 +4,7 @@ Q     = require 'q'
 require('mocha-as-promised')()
 chai = require 'chai'
 chai.use require 'chai-as-promised'
-{assert: {equal, deepEqual, isRejected, fail, eventually}} = chai
+{ assert: { strictEqual: equal, deepEqual, isRejected, fail, becomes } } = chai
 
 eachIterator = (args, x) -> Q.delay(x*25).then -> args.push x
 
@@ -13,8 +13,7 @@ mapIterator = (call_order, x) ->
     call_order.push x
     x*2
 
-filterIterator = (x) ->
-  Q.delay(x*25).thenResolve x % 2
+filterIterator = (x) -> Q.delay(x*25).thenResolve x % 2
 
 detectIterator = (call_order, x) ->
   Q.delay(x*25).then ->
@@ -102,7 +101,7 @@ describe 'compose()', ->
       equal n, 15
       Q.delay(100).thenResolve n+1
     add2mul3add1 = async.compose add1, mul3, add2
-    eventually.equal add2mul3add1(3), 16
+    becomes add2mul3add1(3), 16
 
   it 'handles errors', ->
     testerr = new Error 'test'
@@ -130,7 +129,7 @@ describe 'compose()', ->
       equal this, testcontext
       Q.delay(15).thenResolve n*3
     add2mul3 = async.compose mul3, add2
-    eventually.equal add2mul3.call(testcontext, 3), 15
+    becomes add2mul3.call(testcontext, 3), 15
 
 describe 'auto()', ->
   it 'runs', ->
@@ -243,7 +242,7 @@ describe 'parallel()', ->
       deepEqual results, [1, 2, [3, 3]]
 
   it 'handles an empty array', ->
-    eventually.deepEqual async.parallel([]), []
+    becomes async.parallel([]), []
   
   it 'handles errors', ->
     isRejected(
@@ -265,7 +264,7 @@ describe 'parallelLimit()', ->
       deepEqual results, [1, 2, [3, 3]]
 
   it 'handles an empty array', ->
-    eventually.deepEqual async.parallelLimit([], 2), []
+    becomes async.parallelLimit([], 2), []
 
   it 'handles errors', ->
     isRejected(
@@ -287,7 +286,7 @@ describe 'series()', ->
       deepEqual call_order, [1, 2, 3]
 
   it 'handles an empty array', ->
-    eventually.deepEqual async.series([]), []
+    becomes async.series([]), []
 
   it 'handles errors', ->
     isRejected(
@@ -375,3 +374,185 @@ describe 'eachLimit()', ->
     )
 
   it 'is aliased to forEachLimit', -> equal async.forEachLimit, async.eachLimit
+
+describe 'map()', ->
+  it 'returns proper results', ->
+    call_order = []
+    async.map([1, 3, 2], mapIterator.bind(this, call_order)).then (results) ->
+      deepEqual call_order, [1, 2, 3]
+      deepEqual results, [2, 6, 4]
+
+  it 'does not modify original array', ->
+    a = [1, 2, 3]
+    async.map(a, (x) -> x*2).then (results) ->
+      deepEqual results, [2, 4, 6]
+      deepEqual a, [1, 2, 3]
+
+  it 'handles errors', ->
+    isRejected async.map([1, 2, 3], -> throw 'error1'), /^error1$/
+
+describe 'mapSeries()', ->
+  it 'returns proper results', ->
+    call_order = []
+    async.mapSeries([1, 3, 2], mapIterator.bind(this, call_order)).then (res) ->
+      deepEqual call_order, [1, 3, 2]
+      deepEqual res, [2, 6, 4]
+
+  it 'handles errors', ->
+    isRejected async.mapSeries([1, 2, 3], -> throw 'error1'), /^error1$/
+
+describe 'mapLimit()', ->
+  it 'accepts an empty array', ->
+    async.mapLimit [], 2, -> fail 'iterator should not be called'
+
+  it 'can handle limit < input.length', ->
+    call_order = []
+    async.mapLimit([2,4,3], 2, mapIterator.bind(this, call_order)).then (res) ->
+      deepEqual call_order, [2, 4, 3], 'proper order'
+      deepEqual res, [4, 8, 6], 'right results'
+
+  it 'can handle limit = input.length', ->
+    args = []
+    arr = [0..9]
+    async.mapLimit(arr, arr.length, mapIterator.bind(this, args)).then (res) ->
+      deepEqual args,  arr
+      deepEqual res, arr.map (n) -> n*2
+
+  it 'can handle limit > input.length', ->
+    call_order = []
+    arr = [0..9]
+    async.mapLimit(arr, 20, mapIterator.bind(this, call_order)).then (res) ->
+      deepEqual call_order, arr
+      deepEqual res, arr.map (n) -> n*2
+
+  it 'can handle limit = 0', ->
+    async.mapLimit([0..5], 0, -> fail 'iterator should not be called')
+
+  it 'can handle errors', ->
+    isRejected(
+      async.mapLimit [0,1,2], 3, (x) -> throw 'error1' if x is 2
+      /^error1$/
+    )
+
+describe 'reduce()', ->
+  it 'returns proper result', ->
+    call_order = []
+    async.reduce([1, 2, 3], 0, (a, x) ->
+      call_order.push x
+      a + x
+    ).then (res) ->
+      equal res, 6
+      deepEqual call_order, [1, 2, 3]
+
+  it 'works async', ->
+    becomes async.reduce([1, 3, 2], 0, (a, x) ->
+      Q.delay(Math.random()*100).thenResolve a+x
+    ), 6
+
+  it 'handles errors', ->
+    isRejected async.reduce([1, 2, 3], 0, -> throw 'error1'), /^error1$/
+
+  it 'is aliased to inject', -> equal async.inject, async.reduce
+  it 'is aliased to foldl', -> equal async.foldl, async.reduce
+
+describe 'reduceRight()', ->
+  it 'returns proper result', ->
+    call_order = []
+    a = [1, 2, 3]
+    async.reduceRight(a, 0, (a, x) ->
+      call_order.push x
+      a + x
+    ).then (res) ->
+      equal res, 6
+      deepEqual call_order, [3, 2, 1]
+      deepEqual a, [1, 2, 3]
+
+  it 'is aliased to foldr', -> equal async.foldr, async.reduceRight
+
+describe 'filter()', ->
+  it 'returns proper results', ->
+    becomes async.filter([3, 1, 2], filterIterator), [3, 1]
+
+  it 'does not modify input', ->
+    a = [3, 1, 2]
+    async.filter(a, (x) -> Q x % 2).then (res) ->
+      deepEqual res, [3,1]
+      deepEqual a, [3, 1, 2]
+
+  it 'is aliased to select', -> equal async.select, async.filter
+
+describe 'filterSeries()', ->
+  it 'returns proper results', ->
+    becomes async.filterSeries([3, 1, 2], filterIterator), [3, 1]
+
+  it 'is aliased to selectSeries', ->
+    equal async.selectSeries, async.filterSeries
+
+describe 'reject()', ->
+  it 'returns proper results', ->
+    becomes async.reject([3, 1, 2], filterIterator), [2]
+
+  it 'does not modify input', ->
+    a = [3, 1, 2]
+    async.reject(a, (x) -> Q x % 2).then (res) ->
+      deepEqual res, [2]
+      deepEqual a, [3, 1, 2]
+
+describe 'rejectSeries()', ->
+  it 'returns proper results', ->
+    becomes async.rejectSeries([3, 1, 2], filterIterator), [2]
+
+describe 'some()', ->
+  it 'finds something', ->
+    becomes async.some([3, 1, 2], (x) -> Q.delay(0).thenResolve x is 1), true
+
+  it 'finds nothing', ->
+    becomes async.some([3, 2, 1], (x) -> Q x is 10), false
+
+  it 'is aliased to any', -> equal async.any, async.some
+
+  it 'returns early on match', ->
+    call_order = []
+    async.some([1, 2, 3], (x) -> Q.delay(x*25).then ->
+      call_order.push x
+      x is 1
+    ).then(-> call_order.push 'resolved')
+     .delay(100)
+     .then(-> deepEqual call_order, [1, 'resolved', 2, 3])
+
+describe.only 'every()', ->
+  it 'matches everything', ->
+    becomes async.every([1, 2, 3], (x) -> Q.delay(0).thenResolve x < 4), true
+
+  it 'matches not everything', ->
+    becomes async.every([1, 2, 3], (x) -> Q.delay(0).thenResolve x % 2), false
+
+  it 'is aliased to all', -> equal async.all, async.every
+
+  it 'returns early on mis-match', ->
+    call_order = []
+    async.every([1, 2, 3], (x) -> Q.delay(x*25).then ->
+      call_order.push x
+      x is 1
+    ).then(-> call_order.push 'resolved')
+     .delay(100)
+     .then(-> deepEqual call_order, [1, 2, 'resolved', 3])
+
+describe 'detect()', ->
+describe 'detectSeries()', ->
+describe 'sortBy()', ->
+describe 'concat()', ->
+describe 'concatSeries()', ->
+describe 'whilst()', ->
+describe 'until()', ->
+describe 'doWhilst()', ->
+describe 'doUntil()', ->
+describe 'forever()', ->
+describe 'queue()', ->
+describe 'cargo()', ->
+describe 'times()', ->
+describe 'timesSeries()', ->
+describe 'memoize()', ->
+describe 'unmemoize()', ->
+describe 'log()', ->
+describe 'dir()', ->

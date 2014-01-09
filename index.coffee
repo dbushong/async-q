@@ -88,12 +88,16 @@ module.exports = async =
 
   # type sig for some() & every()
   # [a] -> (a -> P Boolean) -> P Boolean
-  # TODO: have these bail "early" when reach known state?
-  some: (arr, iterator) ->
-    async.filter(arr, iterator).then (passed) -> passed.length > 0
+  some: (arr, iterator, _every=false) ->
+    d = Q.defer()
+    done = {}
+    Q.all(arr.map (a) -> iterator(a).then (ok) -> throw done if _every ^ ok)
+     .thenResolve(_every)
+     .catch (err) ->
+       throw err unless err is done
+       not _every
 
-  every: (arr, iterator) ->
-    async.reject(arr, iterator).then (rejected) -> rejected.length is 0
+  every: (arr, iterator) -> async.some arr, iterator, true
 
   # type sig for concat{,Series}()
   # [a] -> (a -> P [b]) -> [b]
