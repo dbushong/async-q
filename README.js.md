@@ -25,8 +25,7 @@ The only missing functions are internal utility routines like `iterator()`,
 This code only works on node; I've not bothered to make it browser-safe in
 any way.
 
-The below examples are in CoffeeScript.  You can view them in
-[auto-generated JavaScript](README.js.md) instead, if you like.
+You can also view the below examples [in CoffeeScript](README.md).
 
 ## Download
 
@@ -36,8 +35,10 @@ npm install async-q
 
 ## Usage
 
-```coffee
-async = require 'async-q'
+```js
+var async;
+
+async = require('async-q');
 ```
 
 ## Documentation
@@ -115,13 +116,12 @@ __Arguments__
 
 __Example__
 
-```coffee
-### assuming openFiles is an array of file names and saveFile is a function
+```js
+/* assuming openFiles is an array of file names and saveFile is a function
     to save the modified contents of that file:
-###
+*/
 
-async.each(openFiles, saveFile).catch (err) ->
-  # if any of the saves produced an error, err would equal that error
+async.each(openFiles, saveFile)["catch"](function(err) {});
 ```
 
 ---------------------------------------
@@ -156,13 +156,12 @@ __Arguments__
 
 __Example__
 
-```coffee
-### Assume documents is an array of JSON objects and requestApi is a
+```js
+/* Assume documents is an array of JSON objects and requestApi is a
     function that interacts with a rate-limited REST api.
-###
+*/
 
-async.eachLimit(documents, 20, requestApi).catch (err) ->
-  # if any of the saves produced an error, err would equal that error
+async.eachLimit(documents, 20, requestApi)["catch"](function(err) {});
 ```
 
 ---------------------------------------
@@ -189,19 +188,20 @@ __Arguments__
 
 __Example__
 
-```coffee
-fs = require 'q-io/fs'
-async.map(['file1','file2','file3'], fs.stat)
-  .then (results) ->
-    doStuff() # results is now an array of stats for each file
-  .done()
+```js
+var fs;
 
-### this is pretty much the same as: ###
+fs = require('q-io/fs');
 
-Q.all(['file1','file2','file3'].map(fs.stat))
-  .then (results) ->
-    doStuff() # results is now an array of stats for each file
-  .done()
+async.map(['file1', 'file2', 'file3'], fs.stat).then(function(results) {
+  return doStuff();
+}).done();
+
+// this is pretty much the same as:
+
+Q.all(['file1', 'file2', 'file3'].map(fs.stat)).then(function(results) {
+  return doStuff();
+}).done();
 ```
 
 ---------------------------------------
@@ -236,12 +236,14 @@ __Arguments__
 
 __Example__
 
-```coffee
-fs = require 'q-io/fs'
-async.mapLimit(['file1','file2','file3'], 1, fs.stat)
-  .then (results) ->
-    doStuff() # results is now an array of stats for each file
-  .done()
+```js
+var fs;
+
+fs = require('q-io/fs');
+
+async.mapLimit(['file1', 'file2', 'file3'], 1, fs.stat).then(function(results) {
+  return doStuff();
+}).done();
 ```
 
 ---------------------------------------
@@ -263,12 +265,14 @@ __Arguments__
 
 __Example__
 
-```coffee
-fs = require 'q-io/fs'
-async.filter(['file1','file2','file3'], fs.exists)
-  .then (results) ->
-    doStuff() # results now equals an array of the existing files
-  .done()
+```js
+var fs;
+
+fs = require('q-io/fs');
+
+async.filter(['file1', 'file2', 'file3'], fs.exists).then(function(results) {
+  return doStuff();
+}).done();
 ```
 
 ---------------------------------------
@@ -325,11 +329,12 @@ __Arguments__
 
 __Example__
 
-```coffee
-async.reduce([1,2,3], 0, ((memo, item) -> Q(memo + item)))
-  .then (result) ->
-    doStuff() # result is now equal to the last value of memo, which is 6
-  .done()
+```js
+async.reduce([1, 2, 3], 0, (function(memo, item) {
+  return Q(memo + item);
+})).then(function(result) {
+  return doStuff();
+}).done();
 ```
 
 ---------------------------------------
@@ -365,12 +370,14 @@ __Arguments__
 
 __Example__
 
-```coffee
-fs = require 'q-io/fs'
-async.detect(['file1','file2','file3'], fs.exists)
-  .then (result) ->
-    doStuff() # result now equals the first file in the list that exists
-  .done()
+```js
+var fs;
+
+fs = require('q-io/fs');
+
+async.detect(['file1', 'file2', 'file3'], fs.exists).then(function(result) {
+  return doStuff();
+}).done();
 ```
 
 ---------------------------------------
@@ -398,12 +405,16 @@ __Arguments__
 
 __Example__
 
-```coffee
-fs = require 'q-io/fs'
-async.sortBy(['file1','file2','file3'], (file) -> fs.stat(file).get('mtime'))
-  .then (results) ->
-    doStuff() # results is now the original array of files sorted by mod time
-  .done()
+```js
+var fs;
+
+fs = require('q-io/fs');
+
+async.sortBy(['file1', 'file2', 'file3'], function(file) {
+  return fs.stat(file).get('mtime');
+}).then(function(results) {
+  return doStuff();
+}).done();
 ```
 
 ---------------------------------------
@@ -429,12 +440,14 @@ __Arguments__
 
 __Example__
 
-```coffee
-fs = require 'q-io/fs'
-async.some(['file1','file2','file3'], fs.exists)
-  .then (result) ->
-    doStuff() # if result is true then at least one of the files exists
-  .done()
+```js
+var fs;
+
+fs = require('q-io/fs');
+
+async.some(['file1', 'file2', 'file3'], fs.exists).then(function(result) {
+  return doStuff();
+}).done();
 ```
 
 ---------------------------------------
@@ -455,11 +468,10 @@ __Arguments__
 
 __Example__
 
-```coffee
-async.every(['file1','file2','file3'], fs.exists)
-  .then (result) ->
-    doStuff() # if result is true then every file exists
-  .done()
+```js
+async.every(['file1', 'file2', 'file3'], fs.exists).then(function(result) {
+  return doStuff();
+}).done();
 ```
 
 ---------------------------------------
@@ -481,12 +493,14 @@ __Arguments__
 
 __Example__
 
-```coffee
-fs = require 'q-io/fs'
-async.concat(['dir1','dir2','dir3'], fs.list)
-  .then (files) ->
-    doStuff() # files is now a list of filenames that exist in the 3 dirs
-  .done()
+```js
+var fs;
+
+fs = require('q-io/fs');
+
+async.concat(['dir1', 'dir2', 'dir3'], fs.list).then(function(files) {
+  return doStuff();
+}).done();
 ```
 
 ---------------------------------------
@@ -516,25 +530,29 @@ __Arguments__
 
 __Example__
 
-```coffee
+```js
 async.series([
-  ->
-    # do some stuff
-    Q 'one'
-  ->
-    # do some more stuff ...
-    Q 'two'
-]).then (results) ->
-    doStuff() # results is now equal to ['one', 'two']
-  .done()
+  function() {
+    return Q('one');
+  }, function() {
+    return Q('two');
+  }
+]).then(function(results) {
+  return doStuff();
+}).done();
 
-### an example using an object instead of an array ###
+// an example using an object instead of an array
+
 async.series({
-  one: -> Q.delay(200).thenResolve(1)
-  two: -> Q.delay(100).thenResolve(2)
-}).then (results) ->
-    doStuff() # results is now equal to: {one: 1, two: 2}
-  .done()
+  one: function() {
+    return Q.delay(200).thenResolve(1);
+  },
+  two: function() {
+    return Q.delay(100).thenResolve(2);
+  }
+}).then(function(results) {
+  return doStuff();
+}).done();
 ```
 
 ---------------------------------------
@@ -560,22 +578,29 @@ __Arguments__
 
 __Example__
 
-```coffee
+```js
 async.parallel([
-  -> Q.delay(200).thenResolve('one')
-  -> Q.delay(100).thenResolve('two')
-]).then (results) ->
-    doStuff() # the results array will equal ['one','two'] even though
-              # the second function had a shorter timeout.
-  .done()
+  function() {
+    return Q.delay(200).thenResolve('one');
+  }, function() {
+    return Q.delay(100).thenResolve('two');
+  }
+]).then(function(results) {
+  return doStuff();
+}).done();
 
-### an example using an object instead of an array ###
+// an example using an object instead of an array
+
 async.parallel({
-  one: -> Q.delay(200).thenResolve(1)
-  two: -> Q.delay(100).thenResolve(2)
-}).then (results) ->
-    doStuff() # results is now equals to: {one: 1, two: 2}
-  .done()
+  one: function() {
+    return Q.delay(200).thenResolve(1);
+  },
+  two: function() {
+    return Q.delay(100).thenResolve(2);
+  }
+}).then(function(results) {
+  return doStuff();
+}).done();
 ```
 
 ---------------------------------------
@@ -612,13 +637,19 @@ __Arguments__
 
 __Example__
 
-```coffee
-count = 0
+```js
+var count;
 
-async.whilst((-> count < 5), -> count++; Q.delay(1000))
-  .then ->
-    doStuff() # 5 seconds have passed
-  .done()
+count = 0;
+
+async.whilst((function() {
+  return count < 5;
+}), function() {
+  count++;
+  return Q.delay(1000);
+}).then(function() {
+  return doStuff();
+}).done();
 ```
 
 ---------------------------------------
@@ -672,16 +703,20 @@ __Arguments__
 
 __Example__
 
-```coffee
+```js
 async.waterfall([
-  -> Q ['one', 'two']
-  ([arg1, arg2]) -> Q 'three'
-  (arg1) ->
-    # arg1 now equals 'three'
-    Q 'done'
-]).then (result) ->
-    doStuff() # result now equals 'done'    
-  .done()
+  function() {
+    return Q(['one', 'two']);
+  }, function(_arg) {
+    var arg1, arg2;
+    arg1 = _arg[0], arg2 = _arg[1];
+    return Q('three');
+  }, function(arg1) {
+    return Q('done');
+  }
+]).then(function(result) {
+  return doStuff();
+}).done();
 ```
 
 ---------------------------------------
@@ -702,17 +737,22 @@ __Arguments__
 
 __Example__
 
-```coffee
-add1 = (n) -> Q.delay(10).thenResolve(n + 1)
+```js
+var add1, add1mul3, mul3;
 
-mul3 = (n) -> Q.delay(10).thenResolve(n * 3)
+add1 = function(n) {
+  return Q.delay(10).thenResolve(n + 1);
+};
 
-add1mul3 = async.compose mul3, add1
+mul3 = function(n) {
+  return Q.delay(10).thenResolve(n * 3);
+};
 
-add1mul3(4)
-  .then (result) ->
-    doStuff() # result now equals 15
-  .done()
+add1mul3 = async.compose(mul3, add1);
+
+add1mul3(4).then(function(result) {
+  return doStuff();
+}).done();
 ```
 
 ---------------------------------------
@@ -732,14 +772,12 @@ __Arguments__
 
 __Example__
 
-```coffee
-async.applyEach([enableSearch, updateSchema], 'bucket').done()
+```js
+async.applyEach([enableSearch, updateSchema], 'bucket').done();
 
-### partial application example: ###
-async.each(
-  buckets,
-  async.applyEach([enableSearch, updateSchema])
-).done()
+// partial application example:
+
+async.each(buckets, async.applyEach([enableSearch, updateSchema])).done();
 ```
 
 ---------------------------------------
@@ -802,36 +840,74 @@ You may receive events with `queueObj.on 'foo', -> ...`
 
 ##### Example
 
-```coffee
-### create a queue object with concurrency 2 ###
+```js
+/* create a queue object with concurrency 2*/
 
-q = async.queue (({name}) -> console.log "hello #{name}"), 2
+var q;
 
-### listen for an event ###
-q.on 'drain', -> console.log 'all items have been processed'
+q = async.queue((function(_arg) {
+  var name;
+  name = _arg.name;
+  return console.log("hello " + name);
+}), 2);
 
-### add some items to the queue ###
+// listen for an event
 
-q.push(name: 'foo').then(-> console.log 'finished processing foo').done()
-q.push(name: 'bar').then(-> console.log 'finished processing bar').done()
+q.on('drain', function() {
+  return console.log('all items have been processed');
+});
 
-### add some items to the queue (batch-wise) ###
+// add some items to the queue
 
-q.push([{name: 'baz'},{name: 'bay'},{name: 'bax'}]).forEach (p) ->
-  p.then(-> console.log 'finished processing baz, bay, OR bax')
-   .done()
+q.push({
+  name: 'foo'
+}).then(function() {
+  return console.log('finished processing foo');
+}).done();
 
-### add some items to the queue (batch-wise) and wait for all to finish ###
+q.push({
+  name: 'bar'
+}).then(function() {
+  return console.log('finished processing bar');
+}).done();
 
-Q.all(q.push([{name: 'baz'},{name: 'bay'},{name: 'bax'}]))
-  .then(-> console.log 'finished processing baz, bay, AND bax')
-  .done()
+// add some items to the queue (batch-wise)
 
-### add some items to the front of the queue ###
+q.push([
+  {
+    name: 'baz'
+  }, {
+    name: 'bay'
+  }, {
+    name: 'bax'
+  }
+]).forEach(function(p) {
+  return p.then(function() {
+    return console.log('finished processing baz, bay, OR bax');
+  }).done();
+});
 
-q.unshift(name: 'garply')
-  .then(-> console.log 'finished processing garply')
-  .done()
+// add some items to the queue (batch-wise) and wait for all to finish
+
+Q.all(q.push([
+  {
+    name: 'baz'
+  }, {
+    name: 'bay'
+  }, {
+    name: 'bax'
+  }
+])).then(function() {
+  return console.log('finished processing baz, bay, AND bax');
+}).done();
+
+// add some items to the front of the queue
+
+q.unshift({
+  name: 'garply'
+}).then(function() {
+  return console.log('finished processing garply');
+}).done();
 ```
 
 ---------------------------------------
@@ -886,19 +962,40 @@ You may receive events with `cargoObj.on 'foo', -> ...`
 
 ##### Example
 
-```coffee
-### create a cargo object with payload 2 ###
+```js
+/* create a cargo object with payload 2*/
 
-cargo = async.cargo(
-  (tasks) -> console.log "hello #{name}" for {name} in tasks
-  2
-)
+var cargo;
 
-### add some items ###
+cargo = async.cargo(function(tasks) {
+  var name, _i, _len, _results;
+  _results = [];
+  for (_i = 0, _len = tasks.length; _i < _len; _i++) {
+    name = tasks[_i].name;
+    _results.push(console.log("hello " + name));
+  }
+  return _results;
+}, 2);
 
-cargo.push(name: 'foo').then(-> console.log 'finished processing foo').done()
-cargo.push(name: 'bar').then(-> console.log 'finished processing bar').done()
-cargo.push(name: 'baz').then(-> console.log 'finished processing baz').done()
+// add some items
+
+cargo.push({
+  name: 'foo'
+}).then(function() {
+  return console.log('finished processing foo');
+}).done();
+
+cargo.push({
+  name: 'bar'
+}).then(function() {
+  return console.log('finished processing bar');
+}).done();
+
+cargo.push({
+  name: 'baz'
+}).then(function() {
+  return console.log('finished processing baz');
+}).done();
 ```
 
 ---------------------------------------
@@ -923,51 +1020,30 @@ __Arguments__
 
 __Example__
 
-```coffee
+```js
 async.auto({
-  get_data: ->
-    # async code to get some data
-  make_folder: ->
-    # async code to create a directory to store a file in
-    # this is run at the same time as getting the data
+  get_data: function() {},
+  make_folder: function() {},
   write_file: [
-    'get_data'
-    'make_folder'
-    -> 
-      # once there is some data and the directory exists,
-      # write the data to a file in the directory
-      filename
-  ]
-  email_link: [
-    'write_file'
-    (results) ->
-      # once the file is written let's email a link to it...
-      # results.write_file contains the filename returned by write_file.
-  ]
-}).done()
+    'get_data', 'make_folder', function() {
+      return filename;
+    }
+  ],
+  email_link: ['write_file', function(results) {}]
+}).done();
 ```
 
 This is a fairly trivial example, but to do this using the basic parallel and
 series functions would look like this:
 
-```coffee
-async.parallel([
-  ->
-    # async code to get some data
-  ->
-    # async code to create a directory to store a file in
-    # this is run at the same time as getting the data
-])
-  .then ->
-    async.waterfall [
-      ->
-        # once there is some data and the directory exists,
-        # write the data to a file in the directory
-        filename
-      (results) ->
-        # once the file is written let's email a link to it...
-    ]
-  .done()
+```js
+async.parallel([function() {}, function() {}]).then(function() {
+  return async.waterfall([
+    function() {
+      return filename;
+    }, function(results) {}
+  ]);
+}).done();
 ```
 
 For a complicated series of async tasks using the auto function makes adding
@@ -988,14 +1064,22 @@ __Arguments__
 
 __Example__
 
-```coffee
-### Pretend this is some complicated async factory ###
-createUser = (id) -> Q { id: "user#{id}" }
-### generate 5 users ###
-async.times(5, createUser)
-  .then (users) ->
-    doStuff() # we should now have 5 users
-  .done()
+```js
+/* Pretend this is some complicated async factory*/
+
+var createUser;
+
+createUser = function(id) {
+  return Q({
+    id: "user" + id
+  });
+};
+
+// generate 5 users
+
+async.times(5, createUser).then(function(users) {
+  return doStuff();
+}).done();
 ```
 
 ---------------------------------------
@@ -1027,14 +1111,20 @@ __Arguments__
 
 __Example__
 
-```coffee
-slow_fn = (name) ->
-  # do something
-  Q result
-fn = async.memoize slow_fn
+```js
+var fn, slow_fn;
 
-### fn can now be used as if it were slow_fn ###
-fn('some name').then(-> doStuff()).done()
+slow_fn = function(name) {
+  return Q(result);
+};
+
+fn = async.memoize(slow_fn);
+
+// fn can now be used as if it were slow_fn
+
+fn('some name').then(function() {
+  return doStuff();
+}).done();
 ```
 
 ---------------------------------------
@@ -1065,8 +1155,12 @@ __Arguments__
 
 __Example__
 
-```coffee
-hello = (name) -> Q.delay(1000).thenResolve "hello #{name}"
+```js
+var hello;
+
+hello = function(name) {
+  return Q.delay(1000).thenResolve("hello " + name);
+};
 ```
 
 ```

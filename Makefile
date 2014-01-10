@@ -2,6 +2,9 @@ BIN=./node_modules/.bin
 
 .PHONY: test publish
 
+README.js.md: README.md js-md.coffee $(BIN)/coffee
+	$(BIN)/coffee js-md.coffee $< > $@
+
 $(BIN)/%:
 	npm install
 
