@@ -1,4 +1,4 @@
-# Async.js for Q [![Build Status](https://travis-ci.org/dbushong/q-async.png?branch=master)](https://travis-ci.org/dbushong/q-async)
+# Async.js for Q [![Build Status](https://travis-ci.org/dbushong/async-q.png?branch=master)](https://travis-ci.org/dbushong/async-q)
 
 Promises with [Q](http://github.com/kriskowal/q) are awesome.  However,
 there's a lot of existing code done using callback-oriented structures.

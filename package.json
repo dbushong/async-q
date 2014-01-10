@@ -2,7 +2,7 @@
   "name": "async-q",
   "version": "0.0.2",
   "description": "Port of async.js to Q",
-  "repository": "git://github.com/dbushong/q-async",
+  "repository": "git://github.com/dbushong/async-q",
   "author": "David Bushong <david+npm@bushong.net>",
   "license": "MIT",
   "scripts": {
