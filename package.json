@@ -4,7 +4,7 @@
   "description": "Port of async.js to Q",
   "repository": "git://github.com/dbushong/async-q",
   "author": "David Bushong <david+npm@bushong.net>",
-  "keywords": ["async", "async", "Q", "q-async", "series", "parallel", "queue"],
+  "keywords": ["async", "Q", "q-async", "series", "parallel", "queue"],
   "license": "MIT",
   "scripts": { "test": "make test" },
   "dependencies": {
