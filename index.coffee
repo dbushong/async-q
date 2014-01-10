@@ -1,5 +1,6 @@
 Q      = require 'q'
 throat = require 'throat'
+events = require 'events'
 
 aliases =
   each:         ['map',       'forEach']
@@ -31,6 +32,14 @@ processArrayOrObject = (tasks, fn) ->
       res
     else
       results
+
+makeEmitter = (obj) ->
+  obj[prop] = fn for prop, fn of events.EventEmitter.prototype
+  obj
+
+# for use in detect()
+class Found
+  constructor: (@val) ->
 
 module.exports = async =
   # type sig for each{,Series}()
@@ -69,9 +78,20 @@ module.exports = async =
 
   # type sig for detect{,Series}()
   # [a] -> (a -> P Boolean) -> P a
-  detect: (arr, iterator) -> async.filter(arr, iterator).get 0
+  detect: (arr, iterator, _notFound=undefined) ->
+    Q.all(arr.map (a) -> Q.try(iterator,a).then (ok) -> throw new Found a if ok)
+     .thenResolve(_notFound)
+     .catch (ball) ->
+       throw ball unless ball instanceof Found
+       ball.val
 
-  detectSeries: (arr, iterator) -> async.filterSeries(arr, iterator).get 0
+  detectSeries: (arr, iterator, _notFound=undefined) ->
+    return Q _notFound if arr.length is 0
+    iterator(arr[0]).then (ok) ->
+      if ok
+        arr[0]
+      else
+        async.detectSeries arr[1..], iterator
 
   # [a] -> (a -> P b) -> [a]
   # basically a swartzian transform
@@ -88,22 +108,20 @@ module.exports = async =
 
   # type sig for some() & every()
   # [a] -> (a -> P Boolean) -> P Boolean
-  some: (arr, iterator, _every=false) ->
-    d = Q.defer()
-    done = {}
-    Q.all(arr.map (a) -> iterator(a).then (ok) -> throw done if _every ^ ok)
-     .thenResolve(_every)
-     .catch (err) ->
-       throw err unless err is done
-       not _every
+  some: (arr, iterator) ->
+    async.detect(arr, iterator, nf={}).then (res) -> res isnt nf
 
-  every: (arr, iterator) -> async.some arr, iterator, true
+  every: (arr, iterator) ->
+    negator = (a) -> Q.try(iterator, a).then (ok) -> not ok
+    async.detect(arr, negator, nf={}).then (res) -> res is nf
 
   # type sig for concat{,Series}()
   # [a] -> (a -> P [b]) -> [b]
   concat: (arr, iterator) ->
-    async.map(arr, iterator)
-      .then (res) -> res.reduce ((a,b) -> a.concat b), []
+    results = []
+    Q.all(arr.map (a) ->
+      Q.try(iterator, a).then (res) -> results.push res...
+    ).thenResolve(results)
 
   concatSeries: (arr, iterator) ->
     async.reduce arr, [], (res, a) -> iterator(a).then (bs) -> res.concat bs
@@ -128,19 +146,16 @@ module.exports = async =
       else
         Q []
 
-  # FIXME: should we put a limit on these? JS probably doesn't have tail
-  # recursion optimization
   # (->) -> (-> P) -> P
-  whilst: (test, fn, invert=false) ->
-    if invert ^ test()
-      Q.try(fn).then -> async.whilst test, fn
-    else
-      Q()
+  whilst: (test, fn, _invert=false) ->
+    Q.try ->
+      if _invert ^ test()
+        Q.try(fn).then -> async.whilst test, fn, _invert
   until: (test, fn) -> async.whilst test, fn, true
 
   # (-> P) -> (->) -> P
-  doWhilst: (fn, test) -> fn().then -> async.whilst test, fn
-  doUntil:  (fn, test) -> fn().then -> async.whilst test, fn, true
+  doWhilst: (fn, test) -> Q.try(fn).then -> async.whilst test, fn
+  doUntil:  (fn, test) -> Q.try(fn).then -> async.whilst test, fn, true
 
   forever: (fn) -> Q.try(fn).then -> async.forever fn
 
@@ -170,68 +185,60 @@ module.exports = async =
 
   # (a -> P) -> Number -> P
   queue: (worker, concurrency=1) ->
-    _insert = (data, op='push') ->
-      data     = [data] unless data.constructor is Array
-      promises = []
-      for task in data
-        item = data: task, defer: Q.defer()
-        promises.push item.defer.promise
-        q.tasks[op] item
-        q.saturated?() if q.tasks.length is concurrency
+    _insert = (data, op) ->
+      gotArray = data.constructor is Array
+      data     = [data] unless gotArray
+      promises = data.map (task) ->
+        tasks[op] data: task, defer: (d=Q.defer())
+        q.emit 'saturated' if tasks.length is q.concurrency
         process.nextTick q.process
-      if promises.length is 1 then promises[0] else promises
+        d.promise
+      if gotArray then promises else promises[0]
 
     workers = 0
+    tasks   = []
 
-    q =
+    q = makeEmitter
       concurrency: concurrency
-      tasks:     []
-      saturated: null
-      empty:     null
-      drain:     null
-      push:      (data) -> _insert data
-      unshift:   (data) -> _insert data, 'unshift'
-      length:    -> q.tasks.length
-      running:   -> workers
-      process:   ->
-        if workers < q.concurrency and q.tasks.length
-          task = q.tasks.shift()
-          q.empty?() if q.tasks.length is 0
+      push:    (data) -> _insert data, 'push'
+      unshift: (data) -> _insert data, 'unshift'
+      length:  -> tasks.length
+      process: ->
+        if workers < q.concurrency and tasks.length
+          task = tasks.shift()
+          q.emit 'empty' if tasks.length is 0
           workers++
           Q.try(worker, task.data)
             .catch(task.defer.reject.bind task.defer)
             .then (res) ->
               workers--
               task.defer.resolve res
-              q.drain?() if q.tasks.length + workers is 0
+              q.emit 'drain' if tasks.length + workers is 0
               q.process()
 
   # (a -> P) -> Number -> P
   cargo: (worker, payload=null) ->
     working = false
     tasks   = []
-    cargo   =
-      tasks:     tasks
-      payload:   payload
-      saturated: null
-      empty:     null
-      drain:     null
-      length:    -> tasks.length
-      running:   -> working
+    cargo   = makeEmitter
+      tasks:   tasks
+      payload: payload
+      length:  -> tasks.length
+      running: -> working
       push: (data) ->
-        data     = [data] unless data.contructor is Array
+        gotArray = data.constructor is Array
+        data     = [data] unless gotArray
         promises = data.map (task) ->
-          d = Q.defer()
-          tasks.push data: task, defer: d
+          tasks.push data: task, defer: (d=Q.defer())
           d.promise
-        cargo.saturated?() if tasks.length is payload
+        cargo.emit 'saturated' if tasks.length is payload
         process.nextTick cargo.process
-        if promises.length is 1 then promises[0] else promises
+        if gotArray then promises else promises[0]
       process: ->
         return if working
-        return cargo.drain?() if tasks.length is 0
+        return cargo.emit 'drain' if tasks.length is 0
         ts = if payload? then tasks.splice 0, payload else tasks.splice 0
-        cargo.empty?()
+        cargo.emit 'empty'
         working = true
         Q.try(worker, ts.map (t) -> t.data)
          .catch (err) ->
@@ -288,20 +295,39 @@ module.exports = async =
   nextTick: -> throw new Error 'NOT YET(?) IMPLEMENTED'
 
   # Number -> (-> P) -> P
-  times: (n, fn) -> async.parallel [fn for i in 1..n]
+  times: (n, fn) -> async.parallel [0...n].map (i) -> -> fn i
 
-  timesSeries: (n, fn) -> async.series [fn for i in 1..n]
+  timesSeries: (n, fn) -> async.series [0...n].map (i) -> -> fn i
 
-  memoize: (fn, hasher) ->
-    hasher ||= (x) -> x
-    cache = {}
-    mem = (args...) ->
+  memoize: (fn, hasher=null) ->
+    memo    = {}
+    queues  = {}
+    hasher ?= (args...) -> args.join()
+
+    memoized = (args...) ->
       key = hasher args...
-      return Q cache[key] if key of cache
-      Q.fapply(fn, args).then (res) -> cache[key] = res
-    mem.unmemoized = fn
-    mem.memo = cache
-    mem
+      return Q memo[key] if key of memo
+      d = Q.defer()
+
+      unless key of queues
+        queues[key] = []
+        Q.fapply(fn, args)
+          .then (res) ->
+            memo[key] = res
+            q = queues[key]
+            delete queues[key]
+            q.forEach (qd) -> qd.resolve res
+          .catch (err) ->
+            q = queues[key]
+            delete queues[key]
+            q.forEach (qd) -> qd.reject err
+
+      queues[key].push d
+      d.promise
+
+    memoized.memo       = memo
+    memoized.unmemoized = fn
+    memoized
 
   unmemoize: (fn) -> fn.unmemoized or fn
 

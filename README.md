@@ -465,9 +465,6 @@ parallel, and the results are concatenated as they return. There is no
 guarantee that the results array will be returned in the original order of the
 arguments passed to the iterator function.
 
-That last sentence is a lie; this is currently implemented as `map()` + 
-concatenation of the results.
-
 __Arguments__
 
 * arr - An array to iterate over
@@ -754,44 +751,56 @@ queue will be processed in parallel (up to the concurrency limit). If all
 workers are in progress, the task is queued until one is available. Once
 a worker has completed a task, promise returned from its addition is resolved.
 
-__Arguments__
+##### Arguments
 
 * worker(task) - An promise-returning function for processing a queued
   task, which must resolve its promise when finished.
 * concurrency - An integer for determining how many worker functions should be
   run in parallel.
 
-__Queue objects__
+##### Queue objects
 
-The queue object returned by this function has the following properties and
-methods:
+The queue object returned by this function is an EventEmitter:
+
+###### Functions
 
 * length() - a function returning the number of items waiting to be processed.
-* concurrency - an integer for determining how many worker functions should be
-  run in parallel. This property can be changed after a queue is created to
-  alter the concurrency on-the-fly.
 * push(task) - add a new task to the queue and return a promise which is 
   resolved once the worker has finished processing the task.
   Instead of a single task, an array of tasks can be submitted and an array
   of promises will be returned which can be individually handled or bundled
   with `Q.all()`
 * unshift(task) - same as push but add a new task to the front of the queue.
-* saturated - a callback that is called when the queue length hits the
-  concurrency and further tasks will be queued
-* empty - a callback that is called when the last item from the queue is given
-  to a worker
-* drain - a callback that is called when the last item from the queue has
-  returned from the worker
 
-__Example__
+###### Properties
+
+* concurrency - an integer for determining how many worker functions should be
+  run in parallel. This property can be changed after a queue is created to
+  alter the concurrency on-the-fly.
+
+###### Events
+
+You may receive events with `queueObj.on 'foo', -> ...`
+
+* saturated - emitted when the queue length hits the concurrency and further
+  tasks will be queued
+* empty - emitted when the last item from the queue is given to a worker
+* drain - emitted when the last item from the queue has returned from the worker
+          NOTE: actions contigent on the promise returned from the 
+          `push/unshift()` that queued the final task will not have finished
+          when the drain event is fired; if you wish to run after that,
+          do something like: `queueObj.on 'drain', -> process.nextTick -> ...`
+          or use a `Q.all(...).then(...)` on those promises instead.
+
+##### Example
 
 ```coffee
 # create a queue object with concurrency 2
 
 q = async.queue (({name}) -> console.log "hello #{name}"), 2
 
-# assign a callback
-q.drain = -> console.log 'all items have been processed'
+# listen for an event
+q.on 'drain', -> console.log 'all items have been processed'
 
 # add some items to the queue
 
@@ -828,34 +837,46 @@ worker is in progress, the task is queued until it is available. Once
 the worker has completed some tasks, all of the promises returned from calls
 to push will be resolved.
 
-__Arguments__
+##### Arguments
 
 * worker(tasks) - A promise-returning function for processing an array of
   queued tasks.
 * payload - An optional integer for determining how many tasks should be
   processed per round; if omitted, the default is unlimited.
 
-__Cargo objects__
+##### Cargo objects
 
-The cargo object returned by this function has the following properties and
-methods:
+The cargo object returned by this function is an EventEmitter:
+
+###### Functions
 
 * length() - a function returning the number of items waiting to be processed.
-* payload - an integer for determining how many tasks should be
-  process per round. This property can be changed after a cargo is created to
-  alter the payload on-the-fly.
 * push(task) - add a new task to the queue, returns a promise that is resolved
   once the worker has finished processing the task.
   Instead of a single task, an array of tasks can be submitted in which case
   an array of promises will be returned.
-* saturated - a callback that is called when the queue length hits the
-  concurrency and further tasks will be queued
-* empty - a callback that is called when the last item from the queue is given
-  to a worker
-* drain - a callback that is called when the last item from the queue has
-  returned from the worker
 
-__Example__
+###### Properties
+
+* payload - an integer for determining how many tasks should be
+  process per round. This property can be changed after a cargo is created to
+  alter the payload on-the-fly.
+
+###### Events
+
+You may receive events with `cargoObj.on 'foo', -> ...`
+
+* saturated - emitted when the queue length hits the payload and further
+  tasks will be queued
+* empty - emitted when the last item from the queue is given to a worker
+* drain - emitted when the last item from the queue has returned from the worker
+          NOTE: actions contigent on the promise returned from the 
+          `push()` that queued the final task will not have finished
+          when the drain event is fired; if you wish to run after that,
+          do something like: `cargoObj.on 'drain', -> process.nextTick -> ...`
+          or use a `Q.all(...).then(...)` on those promises instead.
+
+##### Example
 
 ```coffee
 # create a cargo object with payload 2
@@ -955,7 +976,7 @@ you would use with async.map.
 __Arguments__
 
 * n - The number of times to run the function.
-* fn - The promise-returning function to call n times.
+* fn(i) - The promise-returning function to call n times, passed i <- 0...n
 
 __Example__
 

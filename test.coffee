@@ -4,7 +4,8 @@ Q     = require 'q'
 require('mocha-as-promised')()
 chai = require 'chai'
 chai.use require 'chai-as-promised'
-{ assert: { strictEqual: equal, deepEqual, isRejected, fail, becomes } } = chai
+{ assert: { strictEqual: equal, deepEqual, isRejected, fail, becomes, ok }
+} = chai
 
 eachIterator = (args, x) -> Q.delay(x*25).then -> args.push x
 
@@ -520,7 +521,7 @@ describe 'some()', ->
      .delay(100)
      .then(-> deepEqual call_order, [1, 'resolved', 2, 3])
 
-describe.only 'every()', ->
+describe 'every()', ->
   it 'matches everything', ->
     becomes async.every([1, 2, 3], (x) -> Q.delay(0).thenResolve x < 4), true
 
@@ -539,20 +540,513 @@ describe.only 'every()', ->
      .then(-> deepEqual call_order, [1, 2, 'resolved', 3])
 
 describe 'detect()', ->
+  it 'returns proper results', ->
+    call_order = []
+    async.detect([3, 2, 1], detectIterator.bind(this, call_order))
+      .then (res) ->
+        call_order.push 'resolved'
+        equal res, 2
+      .delay(100)
+      .then -> deepEqual call_order, [1, 2, 'resolved', 3]
+
+  it 'returns one of multiple matches', ->
+    call_order = []
+    async.detect([3,2,2,1,2], detectIterator.bind(this, call_order))
+      .then (res) ->
+        call_order.push 'resolved'
+        equal res, 2
+      .delay(100)
+      .then ->
+        deepEqual call_order.filter((c) -> c isnt 'resolved'), [1, 2, 2, 2, 3]
+        i = call_order.indexOf 'resolved'
+        ok (i < 5), 'short circuited early'
+
+  it 'handles errors', ->
+    isRejected(
+      async.detect([1, 2, 3], (x) -> if x is 2 then throw 'error1' else false)
+      /^error1$/
+    )
+
 describe 'detectSeries()', ->
+  it 'returns proper results', ->
+    call_order = []
+    async.detectSeries([3,2,1], detectIterator.bind(this, call_order))
+      .then (res) ->
+        call_order.push 'resolved'
+        equal res, 2
+      .delay(200)
+      .then -> deepEqual call_order, [3, 2, 'resolved']
+
+  it 'returns one of multiple matches', ->
+    call_order = []
+    async.detectSeries([3,2,2,1,2], detectIterator.bind(this, call_order))
+      .then (res) ->
+        call_order.push 'resolved'
+        equal res, 2
+      .delay(200)
+      .then -> deepEqual call_order, [3, 2, 'resolved']
+
 describe 'sortBy()', ->
+  it 'returns proper results', ->
+    becomes(
+      async.sortBy([{a:1},{a:15},{a:6}], (x) -> Q.delay(0).thenResolve x.a)
+      [{a:1},{a:6},{a:15}]
+    )
+
 describe 'concat()', ->
+  it 'returns just-in-time results', ->
+    call_order = []
+    iterator = (x) ->
+      Q.delay(x*25).then ->
+        call_order.push x
+        [x..1]
+    async.concat([1,3,2], iterator).then (res) ->
+      deepEqual res, [1, 2, 1, 3, 2, 1]
+      deepEqual call_order, [1, 2, 3]
+
+  it 'handles errors', ->
+    isRejected async.concat([1,2,3], -> throw 'error1'), /^error1$/
+
 describe 'concatSeries()', ->
-describe 'whilst()', ->
+  it 'returns ordered results', ->
+    call_order = []
+    iterator = (x) ->
+      Q.delay(x*25).then ->
+        call_order.push x
+        [x..1]
+    async.concatSeries([1,3,2], iterator).then (res) ->
+      deepEqual res, [1,3,2,1,2,1]
+      deepEqual call_order, [1,3,2]
+
+  it 'handles errors', ->
+    isRejected async.concatSeries([1,2,3], -> throw 'error1'), /^error1$/
+
 describe 'until()', ->
-describe 'doWhilst()', ->
+  it 'returns proper results', ->
+    call_order = []
+    count = 0
+    async.until(
+      ->
+        call_order.push ['test', count]
+        count is 5
+      ->
+        call_order.push ['iterator', count]
+        count++
+    ).then ->
+      deepEqual call_order, [
+        ['test', 0]
+        ['iterator', 0], ['test', 1]
+        ['iterator', 1], ['test', 2]
+        ['iterator', 2], ['test', 3]
+        ['iterator', 3], ['test', 4]
+        ['iterator', 4], ['test', 5]
+      ]
+      equal count, 5
+
+  it 'handles test errors', ->
+    isRejected async.until((-> throw 'error1'), ->), /^error1$/
+
+  it 'handles iterator errors', ->
+    isRejected async.until((-> false), -> throw 'error1'), /^error1$/
+
 describe 'doUntil()', ->
-describe 'forever()', ->
+  it 'returns proper results', ->
+    call_order = []
+    count = 0
+    async.doUntil(
+      ->
+        call_order.push ['iterator', count]
+        count++
+      ->
+        call_order.push ['test', count]
+        count is 5
+    ).then ->
+      deepEqual call_order, [
+        ['iterator', 0], ['test', 1]
+        ['iterator', 1], ['test', 2]
+        ['iterator', 2], ['test', 3]
+        ['iterator', 3], ['test', 4]
+        ['iterator', 4], ['test', 5]
+      ]
+      equal count, 5
+
+  it 'handles test errors', ->
+    isRejected async.doUntil((->), -> throw 'error1'), /^error1$/
+
+  it 'handles iterator errors', ->
+    isRejected async.doUntil((-> throw 'error1'), -> false), /^error1$/
+
+describe 'whilst()', ->
+  it 'returns proper results', ->
+    call_order = []
+    count = 0
+    async.whilst(
+      ->
+        call_order.push ['test', count]
+        count < 5
+      ->
+        call_order.push ['iterator', count]
+        count++
+    ).then ->
+      deepEqual call_order, [
+        ['test', 0]
+        ['iterator', 0], ['test', 1]
+        ['iterator', 1], ['test', 2]
+        ['iterator', 2], ['test', 3]
+        ['iterator', 3], ['test', 4]
+        ['iterator', 4], ['test', 5]
+      ]
+      equal count, 5
+
+  it 'handles test errors', ->
+    isRejected async.whilst((-> throw 'error1'), ->), /^error1$/
+
+  it 'handles iterator errors', ->
+    isRejected async.whilst((-> true), -> throw 'error1'), /^error1$/
+
+describe 'doWhilst()', ->
+  it 'returns proper results', ->
+    call_order = []
+    count = 0
+    async.doWhilst(
+      ->
+        call_order.push ['iterator', count]
+        count++
+      ->
+        call_order.push ['test', count]
+        count < 5
+    ).then ->
+      deepEqual call_order, [
+        ['iterator', 0], ['test', 1]
+        ['iterator', 1], ['test', 2]
+        ['iterator', 2], ['test', 3]
+        ['iterator', 3], ['test', 4]
+        ['iterator', 4], ['test', 5]
+      ]
+      equal count, 5
+
+  it 'handles test errors', ->
+    isRejected async.doWhilst((->), -> throw 'error1'), /^error1$/
+
+  it 'handles iterator errors', ->
+    isRejected async.doWhilst((-> throw 'error1'), -> true), /^error1$/
+
 describe 'queue()', ->
+
+  testQueue = (concurrency, changeTo=null) ->
+    call_order = []
+    delays = [160, 80, 240, 80]
+
+    # worker1: --1-4
+    # worker2: -2---3
+    # order of completion: 2,1,4,3
+    
+    q = async.queue(
+      (task) ->
+        Q.delay(delays.shift()).then ->
+          call_order.push "process #{task}"
+          'arg'
+      concurrency
+    )
+    concurrency ?= 1
+
+    push1 = q.push(1).then (arg) ->
+      equal arg, 'arg'
+      call_order.push 'resolved 1'
+
+    push2 = q.push(2).then (arg) ->
+      equal arg, 'arg'
+      call_order.push 'resolved 2'
+
+    push3 = q.push(3).then (arg) ->
+      equal arg, 'arg'
+      call_order.push 'resolved 3'
+
+    push4 = q.push(4).then (arg) ->
+      equal arg, 'arg'
+      call_order.push 'resolved 4'
+
+    equal q.length(), 4, 'queue should be length 4 after all pushes'
+    equal q.concurrency, concurrency,
+      "concurrency should be #{concurrency} after pushes"
+
+    if changeTo?
+      concurrency = q.concurrency = changeTo
+
+    drain = Q.defer()
+    q.on 'drain', -> process.nextTick ->
+      try
+        co = if concurrency is 2
+          [ 'process 2', 'resolved 2'
+            'process 1', 'resolved 1'
+            'process 4', 'resolved 4'
+            'process 3', 'resolved 3' ]
+        else
+          [ 'process 1', 'resolved 1'
+            'process 2', 'resolved 2'
+            'process 3', 'resolved 3'
+            'process 4', 'resolved 4' ]
+        deepEqual call_order, co, 'call_order should be correct'
+        equal q.concurrency, concurrency,
+          "concurrency should be #{concurrency} in drain()"
+        equal q.length(), 0, 'queue should be length 0 in drain()'
+        drain.resolve()
+      catch err
+        drain.reject err
+
+    Q.all [push1, push2, push3, push4, drain.promise]
+
+  it 'returns proper results', -> testQueue 2
+
+  it 'defaults to concurrency of 1', -> testQueue()
+
+  it 'handles errors', ->
+    results = []
+    q = async.queue (({name}) -> throw 'fooError' if name is 'foo'), 2
+
+    drain = Q.defer()
+    q.on 'drain', -> process.nextTick ->
+      try
+        deepEqual results, ['bar', 'fooError']
+        drain.resolve()
+      catch err
+        drain.reject(err)
+
+    push1 = q.push(name: 'bar')
+      .then(-> results.push 'bar')
+      .catch(-> results.push 'barError')
+
+    push2 = q.push(name: 'foo')
+      .then(-> results.push 'foo')
+      .catch(-> results.push 'fooError')
+
+    Q.all [drain.promise, push1, push2]
+
+  it 'allows concurrency change', -> testQueue(2, 1)
+
+  it 'supports unshift()', ->
+    queue_order = []
+    q = async.queue ((task) -> queue_order.push task), 1
+
+    Q.all([4..1].map(q.unshift.bind q)).then ->
+      deepEqual queue_order, [1, 2, 3, 4]
+
+  it 'allows pushing multiple tasks at once', ->
+    call_order = []
+    delays = [160,80,240,80]
+    q = async.queue(
+      (task) ->
+        Q.delay(delays.shift()).then ->
+          call_order.push "process #{task}"
+          task
+      2
+    )
+
+    pushes = q.push([1, 2, 3, 4]).map (p) ->
+      p.then (arg) -> call_order.push "resolved #{arg}"
+
+    equal q.length(), 4, 'queue length is 4 after bulk push'
+    equal q.concurrency, 2, 'concurrency is 2 after bulk push'
+
+    Q.all(pushes).then ->
+      deepEqual call_order, [
+        'process 2', 'resolved 2'
+        'process 1', 'resolved 1'
+        'process 4', 'resolved 4'
+        'process 3', 'resolved 3'
+      ]
+      equal q.concurrency, 2, 'concurrency is 2 after completion'
+      equal q.length(), 0, 'queue length is 0 after completion'
+
 describe 'cargo()', ->
-describe 'times()', ->
-describe 'timesSeries()', ->
+  it 'returns proper results', ->
+    call_order = []
+    delays = [160, 160, 80]
+
+    # worker: --12--34--5-
+    # order of completion: 1,2,3,4,5
+    
+    c = async.cargo(
+      (tasks) ->
+        Q.delay(delays.shift()).then ->
+          call_order.push "process #{tasks}"
+          'arg'
+      2
+    )
+
+    push1 = c.push(1).then (arg) ->
+      equal arg, 'arg'
+      call_order.push 'resolved 1'
+
+    push2 = c.push(2).then (arg) ->
+      equal arg, 'arg'
+      call_order.push 'resolved 2'
+
+    equal c.length(), 2
+
+    # async pushes
+    push3 = Q.delay(60).then ->
+      c.push(3).then (arg) ->
+        equal arg, 'arg'
+        call_order.push 'resolved 3'
+
+    push45 = Q.delay(120).then ->
+      push4 = c.push(4).then (arg) ->
+        equal arg, 'arg'
+        call_order.push 'resolved 4'
+      equal c.length(), 2
+      push5 = c.push(5).then (arg) ->
+        equal arg, 'arg'
+        call_order.push 'resolved 5'
+      Q.all [push4, push5]
+
+    Q.all([push1, push2, push3, push45]).then ->
+      deepEqual call_order, [
+        'process 1,2', 'resolved 1', 'resolved 2'
+        'process 3,4', 'resolved 3', 'resolved 4'
+        'process 5', 'resolved 5'
+      ]
+      equal c.length(), 0
+
+  it 'allows pushing multiple tasks at once', ->
+    call_order = []
+    delays = [120, 40]
+
+    # worker: -123-4-
+    # order of completion: 1,2,3,4
+
+    c = async.cargo(
+      (tasks) ->
+        Q.delay(delays.shift()).then ->
+          call_order.push "process #{tasks}"
+          tasks.join()
+      3
+    )
+
+    pushes = c.push([1..4]).map (p) -> p.then (arg) ->
+      call_order.push "resolved #{arg}"
+
+    equal c.length(), 4
+
+    Q.all(pushes).then ->
+      deepEqual call_order, [
+        'process 1,2,3',  'resolved 1,2,3'
+        'resolved 1,2,3', 'resolved 1,2,3'
+        'process 4',      'resolved 4'
+      ]
+      equal c.length(), 0
+
 describe 'memoize()', ->
+  it 'memoizes a function', ->
+    call_order = []
+
+    fn = (arg1, arg2) ->
+      call_order.push ['fn', arg1, arg2]
+      Q arg1 + arg2
+
+    fn2 = async.memoize fn
+
+    Q.all([
+      becomes(fn2(1, 2), 3)
+      becomes(fn2(1, 2), 3)
+      becomes(fn2(2, 2), 4)
+    ]).then -> deepEqual call_order, [['fn', 1, 2], ['fn', 2, 2]]
+
+  it 'handles errors', ->
+    fn = (arg1, arg2) -> throw 'error1'
+    isRejected async.memoize(fn)(1, 2), /^error1$/
+
+  it 'handles multiple async calls', ->
+    fn = (arg1, arg2) -> Q.delay(10).then -> [arg1, arg2]
+    fn2 = async.memoize fn
+    Q.all [
+      becomes fn2(1, 2), [1, 2]
+      becomes fn2(1, 2), [1, 2]
+    ]
+
+  it 'accepts a custom hash function', ->
+    fn = (arg1, arg2) -> Q arg1 + arg2
+    fn2 = async.memoize fn, -> 'custom hash'
+    
+    Q.all [
+      becomes fn2(1, 2), 3
+      becomes fn2(2, 2), 3
+    ]
+
+  it 'lets you futz with the cache', ->
+    fn = async.memoize (arg) -> fail 'Function should never be called'
+    fn.memo.foo = 'bar'
+    becomes fn('foo'), 'bar'
+
 describe 'unmemoize()', ->
-describe 'log()', ->
-describe 'dir()', ->
+  it 'returns the original function', ->
+    call_order = []
+    fn = (arg1, arg2) ->
+      call_order.push ['fn', arg1, arg2]
+      Q arg1 + arg2
+
+    fn2 = async.memoize fn
+    fn3 = async.unmemoize fn2
+
+    Q.all([
+      becomes(fn3(1, 2), 3)
+      becomes(fn3(1, 2), 3)
+      becomes(fn3(2, 2), 4)
+    ]).then -> deepEqual call_order, [['fn',1,2],['fn',1,2,],['fn',2,2]]
+
+  it 'works on not-memoized functions', ->
+    fn = (arg1, arg2) -> Q arg1 + arg2
+    fn2 = async.unmemoize fn
+    becomes fn2(1, 2), 3
+
+describe 'times()', ->
+  it 'returns proper results', ->
+    becomes async.times(5, (n) -> Q n), [0..4]
+
+  it 'maintains order', ->
+    becomes async.times(3, (n) -> Q.delay((3-n)*25).thenResolve n), [0..2]
+
+  it 'accepts n=0', ->
+    async.times(0, -> fail 'iterator should not be called')
+
+  it 'handles errors', ->
+    isRejected async.times(3, -> throw 'error1'), /^error1$/
+
+describe.only 'timesSeries()', ->
+  it 'returns proper results', ->
+    call_order = []
+    async.timesSeries(
+      5
+      (n) ->
+        Q.delay(100-n*10).then ->
+          call_order.push n
+          n
+    ).then (res) ->
+      deepEqual call_order, [0..4]
+      deepEqual res, [0..4]
+
+  it 'handles errors', ->
+    isRejected async.timesSeries(5, -> throw 'error1'), /^error1$/
+
+### FIXME spews output for some reason
+['log', 'dir'].forEach (name) ->
+  describe "#{name}()", ->
+    it "calls console.#{name}() on results", ->
+      fn = (arg1) ->
+        equal arg1, 'one'
+        Q.delay(0).thenResolve 'test'
+      fn_err = (arg1) ->
+        equal arg1, 'one'
+        Q.delay(0).thenReject 'error'
+      _console_fn = console[name]
+      _error      = console.error
+      console[name] = (val) ->
+        console[name] = _console_fn
+        equal val, 'test'
+        equal arguments.length, 1
+      async[name](fn, 'one').then ->
+        console.error = (val) ->
+          console.error = _error
+          equal val, 'error'
+        async[name] fn_err, 'one'
+###
