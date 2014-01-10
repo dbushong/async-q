@@ -12,6 +12,6 @@ process.stdout.write md.replace /```coffee\n([\S\s]+?)\n```/g, (m, coffee) ->
     throw "Error compiling CoffeeScript snippet: #{e}\n#{coffee}"
 
   # replace single line /* foo */ with // foo
-  js = js.replace(/\n[ ]*\/\*(.+)\*\/[ ]*\n/g, "\n//$1")
+  js = js.replace(/(^|\n)[ ]*\/\*(.+)\*\/[ ]*\n/g, "$1//$2")
 
   "```js\n#{js}```"

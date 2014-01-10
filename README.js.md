@@ -841,8 +841,7 @@ You may receive events with `queueObj.on 'foo', -> ...`
 ##### Example
 
 ```js
-/* create a queue object with concurrency 2*/
-
+// create a queue object with concurrency 2
 var q;
 
 q = async.queue((function(_arg) {
@@ -963,8 +962,7 @@ You may receive events with `cargoObj.on 'foo', -> ...`
 ##### Example
 
 ```js
-/* create a cargo object with payload 2*/
-
+// create a cargo object with payload 2
 var cargo;
 
 cargo = async.cargo(function(tasks) {
@@ -1065,8 +1063,7 @@ __Arguments__
 __Example__
 
 ```js
-/* Pretend this is some complicated async factory*/
-
+// Pretend this is some complicated async factory
 var createUser;
 
 createUser = function(id) {
