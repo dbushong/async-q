@@ -118,10 +118,10 @@ __Example__
 
 ```js
 /* assuming openFiles is an array of file names and saveFile is a function
-    to save the modified contents of that file:
-*/
-
-async.each(openFiles, saveFile)["catch"](function(err) {});
+    to save the modified contents of that file: */
+async.each(openFiles, saveFile)["catch"](function(err) {
+  // if any of the saves produced an error, err would equal that error
+});
 ```
 
 ---------------------------------------
@@ -158,10 +158,10 @@ __Example__
 
 ```js
 /* Assume documents is an array of JSON objects and requestApi is a
-    function that interacts with a rate-limited REST api.
-*/
-
-async.eachLimit(documents, 20, requestApi)["catch"](function(err) {});
+    function that interacts with a rate-limited REST api. */
+async.eachLimit(documents, 20, requestApi)["catch"](function(err) {
+  // if any of the saves produced an error, err would equal that error
+});
 ```
 
 ---------------------------------------
@@ -194,12 +194,14 @@ var fs;
 fs = require('q-io/fs');
 
 async.map(['file1', 'file2', 'file3'], fs.stat).then(function(results) {
+  // results is now an array of stats for each file
   return doStuff();
 }).done();
 
 // this is pretty much the same as:
 
 Q.all(['file1', 'file2', 'file3'].map(fs.stat)).then(function(results) {
+  // results is now an array of stats for each file
   return doStuff();
 }).done();
 ```
@@ -242,6 +244,7 @@ var fs;
 fs = require('q-io/fs');
 
 async.mapLimit(['file1', 'file2', 'file3'], 1, fs.stat).then(function(results) {
+  // results is now an array of stats for each file
   return doStuff();
 }).done();
 ```
@@ -271,6 +274,7 @@ var fs;
 fs = require('q-io/fs');
 
 async.filter(['file1', 'file2', 'file3'], fs.exists).then(function(results) {
+  // results now equals an array of the existing files
   return doStuff();
 }).done();
 ```
@@ -333,6 +337,7 @@ __Example__
 async.reduce([1, 2, 3], 0, (function(memo, item) {
   return Q(memo + item);
 })).then(function(result) {
+  // result is now equal to the last value of memo, which is 6
   return doStuff();
 }).done();
 ```
@@ -376,6 +381,7 @@ var fs;
 fs = require('q-io/fs');
 
 async.detect(['file1', 'file2', 'file3'], fs.exists).then(function(result) {
+  // result now equals the first file in the list that exists
   return doStuff();
 }).done();
 ```
@@ -413,6 +419,7 @@ fs = require('q-io/fs');
 async.sortBy(['file1', 'file2', 'file3'], function(file) {
   return fs.stat(file).get('mtime');
 }).then(function(results) {
+  // results is now the original array of files sorted by mod time
   return doStuff();
 }).done();
 ```
@@ -446,6 +453,7 @@ var fs;
 fs = require('q-io/fs');
 
 async.some(['file1', 'file2', 'file3'], fs.exists).then(function(result) {
+  // if result is true then at least one of the files exists
   return doStuff();
 }).done();
 ```
@@ -470,6 +478,7 @@ __Example__
 
 ```js
 async.every(['file1', 'file2', 'file3'], fs.exists).then(function(result) {
+  // if result is true then every file exists
   return doStuff();
 }).done();
 ```
@@ -499,6 +508,7 @@ var fs;
 fs = require('q-io/fs');
 
 async.concat(['dir1', 'dir2', 'dir3'], fs.list).then(function(files) {
+  // files is now a list of filenames that exist in the 3 dirs
   return doStuff();
 }).done();
 ```
@@ -533,11 +543,14 @@ __Example__
 ```js
 async.series([
   function() {
+    // do some stuff
     return Q('one');
   }, function() {
+    // do some more stuff ...
     return Q('two');
   }
 ]).then(function(results) {
+  // results is now equal to ['one', 'two']
   return doStuff();
 }).done();
 
@@ -551,6 +564,7 @@ async.series({
     return Q.delay(100).thenResolve(2);
   }
 }).then(function(results) {
+  // results is now equal to: {one: 1, two: 2}
   return doStuff();
 }).done();
 ```
@@ -586,6 +600,8 @@ async.parallel([
     return Q.delay(100).thenResolve('two');
   }
 ]).then(function(results) {
+  /* the results array will equal ['one','two'] even though
+      the second function had a shorter timeout. */
   return doStuff();
 }).done();
 
@@ -599,6 +615,7 @@ async.parallel({
     return Q.delay(100).thenResolve(2);
   }
 }).then(function(results) {
+  // results is now equals to: {one: 1, two: 2}
   return doStuff();
 }).done();
 ```
@@ -648,6 +665,7 @@ async.whilst((function() {
   count++;
   return Q.delay(1000);
 }).then(function() {
+  // 5 seconds have passed
   return doStuff();
 }).done();
 ```
@@ -712,9 +730,11 @@ async.waterfall([
     arg1 = _arg[0], arg2 = _arg[1];
     return Q('three');
   }, function(arg1) {
+    // arg1 now equals 'three'
     return Q('done');
   }
 ]).then(function(result) {
+  // result now equals 'done'
   return doStuff();
 }).done();
 ```
@@ -751,6 +771,7 @@ mul3 = function(n) {
 add1mul3 = async.compose(mul3, add1);
 
 add1mul3(4).then(function(result) {
+  // result now equals 15
   return doStuff();
 }).done();
 ```
@@ -1020,14 +1041,26 @@ __Example__
 
 ```js
 async.auto({
-  get_data: function() {},
-  make_folder: function() {},
+  get_data: function() {
+    // async code to get some data
+  },
+  make_folder: function() {
+    /* async code to create a directory to store a file in
+        this is run at the same time as getting the data */
+  },
   write_file: [
     'get_data', 'make_folder', function() {
+      /* once there is some data and the directory exists,
+          write the data to a file in the directory */
       return filename;
     }
   ],
-  email_link: ['write_file', function(results) {}]
+  email_link: [
+    'write_file', function(results) {
+      /* once the file is written let's email a link to it...
+          results.write_file contains the filename returned by write_file. */
+    }
+  ]
 }).done();
 ```
 
@@ -1035,11 +1068,22 @@ This is a fairly trivial example, but to do this using the basic parallel and
 series functions would look like this:
 
 ```js
-async.parallel([function() {}, function() {}]).then(function() {
+async.parallel([
+  function() {
+    // async code to get some data
+  }, function() {
+    /* async code to create a directory to store a file in
+        this is run at the same time as getting the data */
+  }
+]).then(function() {
   return async.waterfall([
     function() {
+      /* once there is some data and the directory exists,
+          write the data to a file in the directory */
       return filename;
-    }, function(results) {}
+    }, function(results) {
+      // once the file is written let's email a link to it...
+    }
   ]);
 }).done();
 ```
@@ -1075,6 +1119,7 @@ createUser = function(id) {
 // generate 5 users
 
 async.times(5, createUser).then(function(users) {
+  // we should now have 5 users
   return doStuff();
 }).done();
 ```
@@ -1112,6 +1157,7 @@ __Example__
 var fn, slow_fn;
 
 slow_fn = function(name) {
+  // do something
   return Q(result);
 };
 

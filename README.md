@@ -121,7 +121,7 @@ __Example__
 ###
 
 async.each(openFiles, saveFile).catch (err) ->
-  # if any of the saves produced an error, err would equal that error
+  ### if any of the saves produced an error, err would equal that error ###
 ```
 
 ---------------------------------------
@@ -162,7 +162,7 @@ __Example__
 ###
 
 async.eachLimit(documents, 20, requestApi).catch (err) ->
-  # if any of the saves produced an error, err would equal that error
+  ### if any of the saves produced an error, err would equal that error ###
 ```
 
 ---------------------------------------
@@ -193,14 +193,16 @@ __Example__
 fs = require 'q-io/fs'
 async.map(['file1','file2','file3'], fs.stat)
   .then (results) ->
-    doStuff() # results is now an array of stats for each file
+    ### results is now an array of stats for each file ###
+    doStuff()
   .done()
 
 ### this is pretty much the same as: ###
 
 Q.all(['file1','file2','file3'].map(fs.stat))
   .then (results) ->
-    doStuff() # results is now an array of stats for each file
+    ### results is now an array of stats for each file ###
+    doStuff()
   .done()
 ```
 
@@ -240,7 +242,8 @@ __Example__
 fs = require 'q-io/fs'
 async.mapLimit(['file1','file2','file3'], 1, fs.stat)
   .then (results) ->
-    doStuff() # results is now an array of stats for each file
+    ### results is now an array of stats for each file ###
+    doStuff()
   .done()
 ```
 
@@ -267,7 +270,8 @@ __Example__
 fs = require 'q-io/fs'
 async.filter(['file1','file2','file3'], fs.exists)
   .then (results) ->
-    doStuff() # results now equals an array of the existing files
+    ### results now equals an array of the existing files ###
+    doStuff()
   .done()
 ```
 
@@ -328,7 +332,8 @@ __Example__
 ```coffee
 async.reduce([1,2,3], 0, ((memo, item) -> Q(memo + item)))
   .then (result) ->
-    doStuff() # result is now equal to the last value of memo, which is 6
+    ### result is now equal to the last value of memo, which is 6 ###
+    doStuff()
   .done()
 ```
 
@@ -369,7 +374,8 @@ __Example__
 fs = require 'q-io/fs'
 async.detect(['file1','file2','file3'], fs.exists)
   .then (result) ->
-    doStuff() # result now equals the first file in the list that exists
+    ### result now equals the first file in the list that exists ###
+    doStuff()
   .done()
 ```
 
@@ -402,7 +408,8 @@ __Example__
 fs = require 'q-io/fs'
 async.sortBy(['file1','file2','file3'], (file) -> fs.stat(file).get('mtime'))
   .then (results) ->
-    doStuff() # results is now the original array of files sorted by mod time
+    ### results is now the original array of files sorted by mod time ###
+    doStuff()
   .done()
 ```
 
@@ -433,7 +440,8 @@ __Example__
 fs = require 'q-io/fs'
 async.some(['file1','file2','file3'], fs.exists)
   .then (result) ->
-    doStuff() # if result is true then at least one of the files exists
+    ### if result is true then at least one of the files exists ###
+    doStuff()
   .done()
 ```
 
@@ -458,7 +466,8 @@ __Example__
 ```coffee
 async.every(['file1','file2','file3'], fs.exists)
   .then (result) ->
-    doStuff() # if result is true then every file exists
+    ### if result is true then every file exists ###
+    doStuff()
   .done()
 ```
 
@@ -485,7 +494,8 @@ __Example__
 fs = require 'q-io/fs'
 async.concat(['dir1','dir2','dir3'], fs.list)
   .then (files) ->
-    doStuff() # files is now a list of filenames that exist in the 3 dirs
+    ### files is now a list of filenames that exist in the 3 dirs ###
+    doStuff()
   .done()
 ```
 
@@ -519,13 +529,14 @@ __Example__
 ```coffee
 async.series([
   ->
-    # do some stuff
+    ### do some stuff ###
     Q 'one'
   ->
-    # do some more stuff ...
+    ### do some more stuff ... ###
     Q 'two'
 ]).then (results) ->
-    doStuff() # results is now equal to ['one', 'two']
+    ### results is now equal to ['one', 'two'] ###
+    doStuff()
   .done()
 
 ### an example using an object instead of an array ###
@@ -533,7 +544,8 @@ async.series({
   one: -> Q.delay(200).thenResolve(1)
   two: -> Q.delay(100).thenResolve(2)
 }).then (results) ->
-    doStuff() # results is now equal to: {one: 1, two: 2}
+    ### results is now equal to: {one: 1, two: 2} ###
+    doStuff()
   .done()
 ```
 
@@ -565,8 +577,9 @@ async.parallel([
   -> Q.delay(200).thenResolve('one')
   -> Q.delay(100).thenResolve('two')
 ]).then (results) ->
-    doStuff() # the results array will equal ['one','two'] even though
-              # the second function had a shorter timeout.
+    ### the results array will equal ['one','two'] even though
+        the second function had a shorter timeout. ###
+    doStuff()
   .done()
 
 ### an example using an object instead of an array ###
@@ -574,7 +587,8 @@ async.parallel({
   one: -> Q.delay(200).thenResolve(1)
   two: -> Q.delay(100).thenResolve(2)
 }).then (results) ->
-    doStuff() # results is now equals to: {one: 1, two: 2}
+    ### results is now equals to: {one: 1, two: 2} ###
+    doStuff()
   .done()
 ```
 
@@ -617,7 +631,8 @@ count = 0
 
 async.whilst((-> count < 5), -> count++; Q.delay(1000))
   .then ->
-    doStuff() # 5 seconds have passed
+    ### 5 seconds have passed ###
+    doStuff()
   .done()
 ```
 
@@ -677,10 +692,11 @@ async.waterfall([
   -> Q ['one', 'two']
   ([arg1, arg2]) -> Q 'three'
   (arg1) ->
-    # arg1 now equals 'three'
+    ### arg1 now equals 'three' ###
     Q 'done'
 ]).then (result) ->
-    doStuff() # result now equals 'done'    
+    ### result now equals 'done' ###
+    doStuff()
   .done()
 ```
 
@@ -711,7 +727,8 @@ add1mul3 = async.compose mul3, add1
 
 add1mul3(4)
   .then (result) ->
-    doStuff() # result now equals 15
+    ### result now equals 15 ###
+    doStuff()
   .done()
 ```
 
@@ -926,23 +943,25 @@ __Example__
 ```coffee
 async.auto({
   get_data: ->
-    # async code to get some data
+    ### async code to get some data ###
   make_folder: ->
-    # async code to create a directory to store a file in
-    # this is run at the same time as getting the data
+    ### async code to create a directory to store a file in
+        this is run at the same time as getting the data
+    ###
   write_file: [
     'get_data'
     'make_folder'
     -> 
-      # once there is some data and the directory exists,
-      # write the data to a file in the directory
+      ### once there is some data and the directory exists,
+          write the data to a file in the directory ###
       filename
   ]
   email_link: [
     'write_file'
     (results) ->
-      # once the file is written let's email a link to it...
-      # results.write_file contains the filename returned by write_file.
+      ### once the file is written let's email a link to it...
+          results.write_file contains the filename returned by write_file.
+      ###
   ]
 }).done()
 ```
@@ -953,19 +972,20 @@ series functions would look like this:
 ```coffee
 async.parallel([
   ->
-    # async code to get some data
+    ### async code to get some data ###
   ->
-    # async code to create a directory to store a file in
-    # this is run at the same time as getting the data
+    ### async code to create a directory to store a file in
+        this is run at the same time as getting the data
+    ###
 ])
   .then ->
     async.waterfall [
       ->
-        # once there is some data and the directory exists,
-        # write the data to a file in the directory
+        ### once there is some data and the directory exists,
+            write the data to a file in the directory ###
         filename
       (results) ->
-        # once the file is written let's email a link to it...
+        ### once the file is written let's email a link to it... ###
     ]
   .done()
 ```
@@ -994,7 +1014,8 @@ createUser = (id) -> Q { id: "user#{id}" }
 ### generate 5 users ###
 async.times(5, createUser)
   .then (users) ->
-    doStuff() # we should now have 5 users
+    ### we should now have 5 users ###
+    doStuff()
   .done()
 ```
 
@@ -1029,7 +1050,7 @@ __Example__
 
 ```coffee
 slow_fn = (name) ->
-  # do something
+  ### do something ###
   Q result
 fn = async.memoize slow_fn
 
