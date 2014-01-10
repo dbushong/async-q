@@ -1,6 +1,6 @@
 {
   "name": "async-q",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "description": "Port of async.js to Q",
   "repository": "git://github.com/dbushong/async-q",
   "author": "David Bushong <david+npm@bushong.net>",

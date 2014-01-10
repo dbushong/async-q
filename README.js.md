@@ -110,7 +110,7 @@ there is no guarantee that the iterator functions will complete in order.
 __Arguments__
 
 * arr - An array to iterate over.
-* iterator(item) - A function to apply to each item in the array.
+* iterator(item, index, arr) - A function to apply to each item in the array.
   The iterator must return a promise which will be resolved once it has
   completed.
 
@@ -151,7 +151,7 @@ __Arguments__
 
 * arr - An array to iterate over.
 * limit - The maximum number of iterators to run at any time.
-* iterator(item) - A function to apply to each item in the array.
+* iterator(item, index, arr) - A function to apply to each item in the array.
   The iterator must return a promise for the result.
 
 __Example__
@@ -182,7 +182,7 @@ __Arguments__
 
 
 * arr - An array to iterate over.
-* iterator(item) - A function to apply to each item in the array.
+* iterator(item, index, arr) - A function to apply to each item in the array.
   The iterator must return a promise which will be resolved once it has
   completed.
 

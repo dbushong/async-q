@@ -43,14 +43,15 @@ class Found
 
 module.exports = async =
   # type sig for each{,Series}()
-  # [a] -> (a -> P b) -> P [b]
-  each: (arr, iterator) -> Q.all arr.map (a) -> Q.try iterator, a
+  # [a] -> (a -> Number -> [a] -> P b) -> P [b]
+  each: (arr, iterator) -> Q.all arr.map (a, i) -> Q.try iterator, a, i, arr
 
-  eachSeries: (arr, iterator) -> async.series arr.map (a) -> -> iterator a
+  eachSeries: (arr, iterator) -> async.series arr.map (a, i) ->
+    -> iterator a, i, arr
 
   # [a] -> Number -> (a -> P b) -> P [b]
   eachLimit: (arr, limit, iterator) ->
-    async.parallelLimit arr.map((a) -> -> iterator a), limit
+    async.parallelLimit arr.map((a, i) -> -> iterator a, i, arr), limit
 
   # type sig for {filter,reject}{,Series}()
   # [a] -> (a -> P Boolean) -> P [a]
