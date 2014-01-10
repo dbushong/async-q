@@ -1012,7 +1012,7 @@ describe 'times()', ->
   it 'handles errors', ->
     isRejected async.times(3, -> throw 'error1'), /^error1$/
 
-describe.only 'timesSeries()', ->
+describe 'timesSeries()', ->
   it 'returns proper results', ->
     call_order = []
     async.timesSeries(
