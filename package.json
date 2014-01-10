@@ -6,7 +6,7 @@
   "author": "David Bushong <david@bushong.net>",
   "license": "MIT",
   "scripts": {
-    "prepublish": "./node_modules/.bin/coffee -bc index.coffee",
+    "prepublish": "./node_modules/.bin/coffee -bcps < async.coffee > index.js",
     "test": "make test"
   },
   "dependencies": {

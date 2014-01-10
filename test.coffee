@@ -1,4 +1,4 @@
-async = require './'
+async = require './async'
 Q     = require 'q'
 
 require('mocha-as-promised')()
