@@ -27,10 +27,16 @@ any way.
 
 All of the below examples are in CoffeeScript because I like it.
 
+## Download
+
+```
+npm install async-q
+```
+
 ## Usage
 
 ```coffee
-async = require 'q-async'
+async = require 'async-q'
 ```
 
 ## Documentation
