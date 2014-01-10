@@ -19,5 +19,5 @@ test: $(BIN)/mocha
 index.js: async.coffee $(BIN)/coffee
 	./node_modules/.bin/coffee -bcps < $< > $@
 
-publish: test
+publish: test index.js
 	npm publish
