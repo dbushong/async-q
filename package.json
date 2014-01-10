@@ -6,10 +6,7 @@
   "author": "David Bushong <david+npm@bushong.net>",
   "keywords": ["async", "async", "Q", "q-async", "series", "parallel", "queue"],
   "license": "MIT",
-  "scripts": {
-    "prepublish": "./node_modules/.bin/coffee -bcps < async.coffee > index.js",
-    "test": "make test"
-  },
+  "scripts": { "test": "make test" },
   "dependencies": {
     "throat": "~1.0.0",
     "q": "~1.0.0"
