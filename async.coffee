@@ -253,6 +253,7 @@ module.exports = async =
   auto: (tasks) ->
     total    = (key for own key of tasks).length
     qdef     = Q.defer()
+    reject   = qdef.reject.bind qdef
     results  = {}
     running  = {}
     finished = false
@@ -282,11 +283,10 @@ module.exports = async =
           do (name) ->
             running[name] = true
             Q.try(fn, results)
-              .catch(qdef.reject.bind qdef)
               .then (res) ->
                 results[name] = res
                 checkPending()
-              .done()
+              .catch(reject)
 
     qdef.promise
 
