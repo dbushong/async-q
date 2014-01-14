@@ -1,14 +1,14 @@
 export NPM_CONFIG_REGISTRY=http://registry.npmjs.org
 BIN=./node_modules/.bin
 
-.PHONY: test publish default
+.PHONY: test publish
 
-README.js.md: README.md js-md.coffee $(BIN)/coffee
+default: READJSME.md index.js
+
+READJSME.md: README.md js-md.coffee $(BIN)/coffee
 	$(BIN)/coffee js-md.coffee $< > $@.tmp \
 	  && mv -f $@.tmp $@ \
 	  || (rm -f $@.tmp && false)
-
-default: README.js.md
 
 $(BIN)/%:
 	npm install

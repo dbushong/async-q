@@ -46,8 +46,8 @@ The only missing functions are internal utility routines like `iterator()`,
 This code only works on node; I've not bothered to make it browser-safe in
 any way.
 
-The below examples are in CoffeeScript.  You can view them in
-[auto-generated JavaScript](README.js.md) instead, if you like.
+The examples are all in CoffeeScript.  You can view them in
+[auto-generated JavaScript](READJSME.md) instead, if you like.
 
 ## Download
 

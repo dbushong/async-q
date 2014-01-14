@@ -2,7 +2,7 @@ fs           = require 'fs'
 CoffeeScript = require 'coffee-script'
 
 md = fs.readFileSync(process.argv[2], 'utf8')
-  .replace /The below examples[\s\S]+?if you like\./,
+  .replace /The examples[\s\S]+?if you like\./,
     'You can also view the below examples [in CoffeeScript](README.md).'
 
 process.stdout.write md.replace /```coffee\n([\S\s]+?)\n```/g, (m, coffee) ->
