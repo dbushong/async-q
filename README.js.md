@@ -9,6 +9,25 @@ A number of the functions provided by async.js, e.g. `parallel()` aren't
 terribly useful to existing Q users, since you can just call `Q.all()`, but
 I've included most of the functions for completeness.
 
+All of the functions which return promises can also accept promises as any of
+their arguments, for example instead of:
+
+```js
+fetchPages().then(function(pages) {
+  return async.every(pages, isPageInDB);
+}).then(function(ok) {
+  return doStuff();
+}).done();
+```
+
+You can just do:
+
+```js
+async.every(fetchPages(), isPageinDB).then(function(ok) {
+  return doStuff();
+}).done();
+```
+
 If I had to pick the most useful from this set, that are more annoying to 
 implement with vanilla Q, I'd say:
 

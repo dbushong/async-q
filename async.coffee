@@ -44,24 +44,25 @@ class Found
 module.exports = async =
   # type sig for each{,Series}()
   # [a] -> (a -> Number -> [a] -> P b) -> P [b]
-  each: (arr, iterator) -> Q.all arr.map (a, i) -> Q.try iterator, a, i, arr
+  each: Q.promised (arr, iterator) -> Q.when arr, (arr) ->
+    Q.all arr.map (a, i) -> Q.try iterator, a, i, arr
 
-  eachSeries: (arr, iterator) -> async.series arr.map (a, i) ->
-    -> iterator a, i, arr
+  eachSeries: Q.promised (arr, iterator) ->
+    async.series arr.map (a, i) -> -> iterator a, i, arr
 
   # [a] -> Number -> (a -> P b) -> P [b]
-  eachLimit: (arr, limit, iterator) ->
+  eachLimit: Q.promised (arr, limit, iterator) ->
     async.parallelLimit arr.map((a, i) -> -> iterator a, i, arr), limit
 
   # type sig for {filter,reject}{,Series}()
   # [a] -> (a -> P Boolean) -> P [a]
-  filter: (arr, iterator, reject=false) ->
+  filter: Q.promised (arr, iterator, _reject=false) ->
     Q.all(arr.map (a) -> Q.try(iterator, a).then (ok) -> [ok, a])
-     .then (res) -> res.filter(([ok]) -> reject ^ ok).map ([ok, a]) -> a
+     .then (res) -> res.filter(([ok]) -> _reject ^ ok).map ([ok, a]) -> a
 
-  filterSeries: (arr, iterator, reject=false) ->
+  filterSeries: Q.promised (arr, iterator, _reject=false) ->
     async.series(arr.map (a) -> -> iterator(a).then (ok) -> [ok, a])
-          .then (res) -> res.filter(([ok]) -> reject ^ ok).map ([ok, a]) -> a
+          .then (res) -> res.filter(([ok]) -> _reject ^ ok).map ([ok, a]) -> a
 
   reject: (arr, iterator) -> async.filter arr, iterator, true
 
@@ -69,24 +70,25 @@ module.exports = async =
 
   # type sig for reduce{,Right}()
   # [a] -> b -> (b -> a -> P b) -> P b
-  reduce: (arr, memo, iterator, right=false) ->
-    arr[if right then 'reduceRight' else 'reduce'](
+  reduce: Q.promised (arr, memo, iterator, _method='reduce') ->
+    arr[_method](
       (res, a) -> res.then((b) -> iterator b, a)
       Q(memo)
     )
 
-  reduceRight: (arr, memo, iterator) -> async.reduce arr, memo, iterator, true
+  reduceRight: (arr, memo, iterator) ->
+    async.reduce arr, memo, iterator, 'reduceRight'
 
   # type sig for detect{,Series}()
   # [a] -> (a -> P Boolean) -> P a
-  detect: (arr, iterator, _notFound=undefined) ->
+  detect: Q.promised (arr, iterator, _notFound=undefined) ->
     Q.all(arr.map (a) -> Q.try(iterator,a).then (ok) -> throw new Found a if ok)
      .thenResolve(_notFound)
      .catch (ball) ->
        throw ball unless ball instanceof Found
        ball.val
 
-  detectSeries: (arr, iterator, _notFound=undefined) ->
+  detectSeries: Q.promised (arr, iterator, _notFound=undefined) ->
     return Q _notFound if arr.length is 0
     iterator(arr[0]).then (ok) ->
       if ok
@@ -96,7 +98,7 @@ module.exports = async =
 
   # [a] -> (a -> P b) -> [a]
   # basically a swartzian transform
-  sortBy: (arr, iterator) ->
+  sortBy: Q.promised (arr, iterator) ->
     Q.all(arr.map (a) -> Q.try(iterator, a).then (b) -> [b, a]).then (res) ->
       res.sort((x, y) ->
         if x[0] < y[0]
@@ -112,25 +114,25 @@ module.exports = async =
   some: (arr, iterator) ->
     async.detect(arr, iterator, nf={}).then (res) -> res isnt nf
 
-  every: (arr, iterator) ->
+  every: Q.promised (arr, iterator) ->
     negator = (a) -> Q.try(iterator, a).then (ok) -> not ok
     async.detect(arr, negator, nf={}).then (res) -> res is nf
 
   # type sig for concat{,Series}()
   # [a] -> (a -> P [b]) -> [b]
-  concat: (arr, iterator) ->
+  concat: Q.promised (arr, iterator) ->
     results = []
     Q.all(arr.map (a) ->
       Q.try(iterator, a).then (res) -> results.push res...
     ).thenResolve(results)
 
-  concatSeries: (arr, iterator) ->
+  concatSeries: Q.promised (arr, iterator) ->
     async.reduce arr, [], (res, a) -> iterator(a).then (bs) -> res.concat bs
 
   # type sig for series() & parallel()
   # [-> P *] -> P [*]
   # {-> P *} -> P {*}
-  series: (tasks) ->
+  series: Q.promised (tasks) ->
     processArrayOrObject tasks, (arr) ->
       results = []
       arr.reduce(
@@ -138,9 +140,10 @@ module.exports = async =
         Q()
       ).then(-> results)
 
-  parallel: (tasks) -> processArrayOrObject tasks, (arr) -> Q.all arr.map Q.try
+  parallel: Q.promised (tasks) ->
+    processArrayOrObject tasks, (arr) -> Q.all arr.map Q.try
 
-  parallelLimit: (tasks, limit) ->
+  parallelLimit: Q.promised (tasks, limit) ->
     processArrayOrObject tasks, (arr) ->
       if limit > 0
         Q.all arr.map throat limit
@@ -148,21 +151,23 @@ module.exports = async =
         Q []
 
   # (->) -> (-> P) -> P
-  whilst: (test, fn, _invert=false) ->
+  whilst: Q.promised (test, fn, _invert=false) ->
     Q.try ->
       if _invert ^ test()
         Q.try(fn).then -> async.whilst test, fn, _invert
   until: (test, fn) -> async.whilst test, fn, true
 
   # (-> P) -> (->) -> P
-  doWhilst: (fn, test) -> Q.try(fn).then -> async.whilst test, fn
-  doUntil:  (fn, test) -> Q.try(fn).then -> async.whilst test, fn, true
+  doWhilst: Q.promised (fn, test) -> Q.try(fn).then -> async.whilst test, fn
+  doUntil:  Q.promised (fn, test) ->
+    Q.try(fn).then -> async.whilst test, fn, true
 
-  forever: (fn) -> Q.try(fn).then -> async.forever fn
+  forever: Q.promised (fn) -> Q.try(fn).then -> async.forever fn
 
   # you'd be silly to use this instead of just .then().then(), but hey
   # [(* -> P *)] -> P *
-  waterfall: (tasks) -> tasks.reduce ((res, task) -> res.then(task)), Q()
+  waterfall: Q.promised (tasks) ->
+    tasks.reduce ((res, task) -> res.then(task)), Q()
 
   # [(* -> P *)]... -> (* -> P *)
   compose: (fns...) -> (arg) ->
@@ -250,7 +255,7 @@ module.exports = async =
            cargo.process()
 
   # { [String..., (* -> P *)] } -> P { * }
-  auto: (tasks) ->
+  auto: Q.promised (tasks) ->
     total    = (key for own key of tasks).length
     qdef     = Q.defer()
     reject   = qdef.reject.bind qdef
@@ -296,9 +301,9 @@ module.exports = async =
   nextTick: -> throw new Error 'NOT YET(?) IMPLEMENTED'
 
   # Number -> (-> P) -> P
-  times: (n, fn) -> async.parallel [0...n].map (i) -> -> fn i
+  times: Q.promised (n, fn) -> async.parallel [0...n].map (i) -> -> fn i
 
-  timesSeries: (n, fn) -> async.series [0...n].map (i) -> -> fn i
+  timesSeries: Q.promised (n, fn) -> async.series [0...n].map (i) -> -> fn i
 
   memoize: (fn, hasher=null) ->
     memo    = {}
