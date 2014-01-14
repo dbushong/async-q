@@ -1,3 +1,4 @@
+export NPM_CONFIG_REGISTRY=http://registry.npmjs.org
 BIN=./node_modules/.bin
 
 .PHONY: test publish default
@@ -12,7 +13,7 @@ default: README.js.md
 $(BIN)/%:
 	npm install
 
-test: $(BIN)/mocha
+test: $(BIN)/mocha index.js
 	$(BIN)/mocha \
 	  --compilers coffee:coffee-script \
 	  --reporter spec test.coffee \
@@ -23,5 +24,5 @@ index.js: async.coffee $(BIN)/coffee
 	  && mv -f $@.tmp $@ \
 	  || (rm -f $@.tmp && false)
 
-publish: test index.js
+publish: test
 	npm publish
