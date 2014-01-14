@@ -57,6 +57,13 @@ describe 'forever()', ->
       Q(counter)
     ), /^too big!$/
 
+  it 'accepts a promise for a function', ->
+    counter = 0
+    isRejected async.forever(Q(->
+      throw 'too big!' if ++counter is 50
+      Q(counter)
+    )), /^too big!$/
+
 applyOneTwoThree = (call_order) ->
   [
     (val) ->
@@ -235,6 +242,13 @@ describe 'waterfall()', ->
       -> fail 'next function should not be called'
     ]), /^errzor$/
 
+  it 'accepts a promise for an array of tasks', ->
+    becomes async.waterfall(Q([
+      -> 10
+      (n) -> n + 30
+      (n) -> n + 2
+    ])), 42
+
 describe 'parallel()', ->
   it 'returns proper results', ->
     call_order = []
@@ -257,6 +271,9 @@ describe 'parallel()', ->
       deepEqual call_order, [3, 1, 2]
       deepEqual results, one: 1, two: 2, three: [3, 3]
 
+  it 'accepts a promise', ->
+    becomes async.parallel(Q(getFunctionsArray [])), [1, 2, [3, 3]]
+
 describe 'parallelLimit()', ->
   it 'returns proper results', ->
     call_order = []
@@ -278,6 +295,9 @@ describe 'parallelLimit()', ->
     async.parallelLimit(getFunctionsObject(call_order), 2).then (results) ->
       deepEqual call_order, [1, 3, 2]
       deepEqual results, one: 1, two: 2, three: [3, 3]
+
+  it 'accepts a promise', ->
+    becomes async.parallelLimit(getFunctionsArray([]), 2), [1, 2, [3, 3]]
 
 describe 'series()', ->
   it 'returns proper results', ->
@@ -306,6 +326,9 @@ describe 'series()', ->
       deepEqual results, one: 1, two: 2, three: [3,3]
       deepEqual call_order, [1,2,3]
 
+  it 'accepts a promise', ->
+    becomes async.series(getFunctionsArray []), [1, 2, [3, 3]]
+
 describe 'each()', ->
   it 'runs in parallel', ->
     args = []
@@ -319,6 +342,11 @@ describe 'each()', ->
     isRejected async.each([1, 2, 3], -> throw 'error1'), /^error1$/
 
   it 'is aliased to forEach', -> equal async.forEach, async.each
+
+  it 'accepts promises', ->
+    args = []
+    async.each(Q([1, 3, 2]), Q(eachIterator.bind(this, args))).then ->
+      deepEqual args, [1, 2, 3]
 
 describe 'eachSeries()', ->
   it 'returns proper results', ->
@@ -342,6 +370,11 @@ describe 'eachSeries()', ->
 
   it 'is aliased to forEachSeries', ->
     equal async.forEachSeries, async.eachSeries
+
+  it 'accepts promises', ->
+    args = []
+    async.eachSeries(Q([1, 3, 2]), Q(eachIterator.bind(this, args))).then ->
+      deepEqual args, [1, 3, 2]
 
 describe 'eachLimit()', ->
   it 'accepts an empty array', ->
@@ -376,6 +409,14 @@ describe 'eachLimit()', ->
 
   it 'is aliased to forEachLimit', -> equal async.forEachLimit, async.eachLimit
 
+  it 'accepts promises', ->
+    args = []
+    arr = [0..9]
+    async.eachLimit(Q(arr), Q(2), Q((x) -> Q.delay(x*5).then -> args.push x))
+      .then ->
+        deepEqual args, arr
+
+
 describe 'map()', ->
   it 'returns proper results', ->
     call_order = []
@@ -392,6 +433,9 @@ describe 'map()', ->
   it 'handles errors', ->
     isRejected async.map([1, 2, 3], -> throw 'error1'), /^error1$/
 
+  it 'accepts promises', ->
+    becomes async.map(Q([1, 3, 2]), Q(mapIterator.bind(this, []))), [2, 6, 4]
+
 describe 'mapSeries()', ->
   it 'returns proper results', ->
     call_order = []
@@ -401,6 +445,10 @@ describe 'mapSeries()', ->
 
   it 'handles errors', ->
     isRejected async.mapSeries([1, 2, 3], -> throw 'error1'), /^error1$/
+
+  it 'accepts promises', ->
+    becomes async.mapSeries(Q([1, 3, 2]), Q(mapIterator.bind(this, []))),
+      [2, 6, 4]
 
 describe 'mapLimit()', ->
   it 'accepts an empty array', ->
@@ -435,6 +483,10 @@ describe 'mapLimit()', ->
       /^error1$/
     )
 
+  it 'accepts promises', ->
+    becomes async.mapLimit(Q([2,4,3]), Q(2), Q(mapIterator.bind(this, []))),
+      [4, 8, 6]
+
 describe 'reduce()', ->
   it 'returns proper result', ->
     call_order = []
@@ -456,6 +508,9 @@ describe 'reduce()', ->
   it 'is aliased to inject', -> equal async.inject, async.reduce
   it 'is aliased to foldl', -> equal async.foldl, async.reduce
 
+  it 'accepts promises', ->
+    becomes async.reduce(Q([1, 3, 2]), Q(0), Q((a, x) -> a+x)), 6
+
 describe 'reduceRight()', ->
   it 'returns proper result', ->
     call_order = []
@@ -470,6 +525,9 @@ describe 'reduceRight()', ->
 
   it 'is aliased to foldr', -> equal async.foldr, async.reduceRight
 
+  it 'accepts promises', ->
+    becomes async.reduceRight(Q([1, 2, 3]), Q(0), Q((a, x) -> a+x)), 6
+
 describe 'filter()', ->
   it 'returns proper results', ->
     becomes async.filter([3, 1, 2], filterIterator), [3, 1]
@@ -482,12 +540,18 @@ describe 'filter()', ->
 
   it 'is aliased to select', -> equal async.select, async.filter
 
+  it 'accepts promises', ->
+    becomes async.filter(Q([3, 1, 2]), Q(filterIterator)), [3, 1]
+
 describe 'filterSeries()', ->
   it 'returns proper results', ->
     becomes async.filterSeries([3, 1, 2], filterIterator), [3, 1]
 
   it 'is aliased to selectSeries', ->
     equal async.selectSeries, async.filterSeries
+
+  it 'accepts promises', ->
+    becomes async.filterSeries(Q([3, 1, 2]), Q(filterIterator)), [3, 1]
 
 describe 'reject()', ->
   it 'returns proper results', ->
@@ -499,9 +563,15 @@ describe 'reject()', ->
       deepEqual res, [2]
       deepEqual a, [3, 1, 2]
 
+  it 'accepts promises', ->
+    becomes async.reject(Q([3, 1, 2]), Q(filterIterator)), [2]
+
 describe 'rejectSeries()', ->
   it 'returns proper results', ->
     becomes async.rejectSeries([3, 1, 2], filterIterator), [2]
+
+  it 'accepts promises', ->
+    becomes async.rejectSeries(Q([3, 1, 2]), Q(filterIterator)), [2]
 
 describe 'some()', ->
   it 'finds something', ->
@@ -521,6 +591,10 @@ describe 'some()', ->
      .delay(100)
      .then(-> deepEqual call_order, [1, 'resolved', 2, 3])
 
+  it 'accepts promises', ->
+    becomes async.some(Q([3, 1, 2]), Q((x) -> Q.delay(0).thenResolve x is 1)),
+      true
+
 describe 'every()', ->
   it 'matches everything', ->
     becomes async.every([1, 2, 3], (x) -> Q.delay(0).thenResolve x < 4), true
@@ -538,6 +612,10 @@ describe 'every()', ->
     ).then(-> call_order.push 'resolved')
      .delay(100)
      .then(-> deepEqual call_order, [1, 2, 'resolved', 3])
+
+  it 'accepts promises', ->
+    becomes async.every(Q([1, 2, 3]), Q((x) -> Q.delay(0).thenResolve x < 4)),
+      true
 
 describe 'detect()', ->
   it 'returns proper results', ->
@@ -567,6 +645,9 @@ describe 'detect()', ->
       /^error1$/
     )
 
+  it 'accepts promises', ->
+    becomes async.detect(Q([1, 2, 3]), Q(detectIterator.bind(this, []))), 2
+
 describe 'detectSeries()', ->
   it 'returns proper results', ->
     call_order = []
@@ -586,12 +667,18 @@ describe 'detectSeries()', ->
       .delay(200)
       .then -> deepEqual call_order, [3, 2, 'resolved']
 
+  it 'accepts promises', ->
+    becomes async.detectSeries(Q([3,2,1]), Q(detectIterator.bind(this, []))), 2
+
 describe 'sortBy()', ->
   it 'returns proper results', ->
     becomes(
       async.sortBy([{a:1},{a:15},{a:6}], (x) -> Q.delay(0).thenResolve x.a)
       [{a:1},{a:6},{a:15}]
     )
+
+  it 'accepts promises', ->
+    becomes async.sortBy(Q([{a:2},{a:1}]), Q((x) -> Q(x.a))), [{a:1},{a:2}]
 
 describe 'concat()', ->
   it 'returns just-in-time results', ->
@@ -607,6 +694,10 @@ describe 'concat()', ->
   it 'handles errors', ->
     isRejected async.concat([1,2,3], -> throw 'error1'), /^error1$/
 
+  it 'accepts promises', ->
+    iterator = (x) -> Q.delay(x*25).then -> [x..1]
+    becomes async.concat(Q([1,3,2]), Q(iterator)), [1, 2, 1, 3, 2, 1]
+
 describe 'concatSeries()', ->
   it 'returns ordered results', ->
     call_order = []
@@ -620,6 +711,10 @@ describe 'concatSeries()', ->
 
   it 'handles errors', ->
     isRejected async.concatSeries([1,2,3], -> throw 'error1'), /^error1$/
+
+  it 'accepts promises', ->
+    iterator = (x) -> Q.delay(x*25).then -> [x..1]
+    becomes async.concatSeries(Q([1,3,2]), Q(iterator)), [1,3,2,1,2,1]
 
 describe 'until()', ->
   it 'returns proper results', ->
@@ -649,6 +744,10 @@ describe 'until()', ->
   it 'handles iterator errors', ->
     isRejected async.until((-> false), -> throw 'error1'), /^error1$/
 
+  it 'accepts promises', ->
+    count = 0
+    async.until(Q(-> count is 5), Q(-> count++)).then -> equal count, 5
+
 describe 'doUntil()', ->
   it 'returns proper results', ->
     call_order = []
@@ -675,6 +774,10 @@ describe 'doUntil()', ->
 
   it 'handles iterator errors', ->
     isRejected async.doUntil((-> throw 'error1'), -> false), /^error1$/
+
+  it 'accepts promises', ->
+    count = 0
+    async.doUntil(Q(-> count++), Q(-> count is 5)).then -> equal count, 5
 
 describe 'whilst()', ->
   it 'returns proper results', ->
@@ -704,6 +807,10 @@ describe 'whilst()', ->
   it 'handles iterator errors', ->
     isRejected async.whilst((-> true), -> throw 'error1'), /^error1$/
 
+  it 'accepts promises', ->
+    count = 0
+    async.whilst(Q(-> count < 5), Q(-> count++)).then -> equal count, 5
+
 describe 'doWhilst()', ->
   it 'returns proper results', ->
     call_order = []
@@ -730,6 +837,10 @@ describe 'doWhilst()', ->
 
   it 'handles iterator errors', ->
     isRejected async.doWhilst((-> throw 'error1'), -> true), /^error1$/
+
+  it 'accepts promises', ->
+    count = 0
+    async.doWhilst(Q(-> count++), Q(-> count < 5)).then -> equal count, 5
 
 describe 'queue()', ->
 
@@ -1012,6 +1123,9 @@ describe 'times()', ->
   it 'handles errors', ->
     isRejected async.times(3, -> throw 'error1'), /^error1$/
 
+  it 'accepts promises', ->
+    becomes async.times(Q(5), Q((n) -> Q n)), [0..4]
+
 describe 'timesSeries()', ->
   it 'returns proper results', ->
     call_order = []
@@ -1027,6 +1141,9 @@ describe 'timesSeries()', ->
 
   it 'handles errors', ->
     isRejected async.timesSeries(5, -> throw 'error1'), /^error1$/
+
+  it 'accepts promises', ->
+    becomes async.timesSeries(Q(5), Q((n) -> Q n)), [0..4]
 
 ### FIXME spews output for some reason
 ['log', 'dir'].forEach (name) ->
