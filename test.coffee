@@ -873,7 +873,9 @@ describe 'queue()', ->
       equal arg, 'arg'
       call_order.push 'resolved 3'
 
-    push4 = q.push(4).then (arg) ->
+    push4 = q.push(4)
+    push4.start.then -> call_order.push 'started 4'
+    push4.then (arg) ->
       equal arg, 'arg'
       call_order.push 'resolved 4'
 
@@ -884,28 +886,28 @@ describe 'queue()', ->
     if changeTo?
       concurrency = q.concurrency = changeTo
 
-    drain = Q.defer()
-    q.on 'drain', -> process.nextTick ->
-      try
-        co = if concurrency is 2
-          [ 'process 2', 'resolved 2'
-            'process 1', 'resolved 1'
-            'process 4', 'resolved 4'
-            'process 3', 'resolved 3' ]
-        else
-          [ 'process 1', 'resolved 1'
-            'process 2', 'resolved 2'
-            'process 3', 'resolved 3'
-            'process 4', 'resolved 4' ]
-        deepEqual call_order, co, 'call_order should be correct'
-        equal q.concurrency, concurrency,
-          "concurrency should be #{concurrency} in drain()"
-        equal q.length(), 0, 'queue should be length 0 in drain()'
-        drain.resolve()
-      catch err
-        drain.reject err
+    drain = Q.promise (resolve, reject) ->
+      q.on 'drain', -> process.nextTick ->
+        try
+          co = if concurrency is 2
+            [ 'process 2', 'resolved 2'
+              'process 1', 'resolved 1', 'started 4',
+              'process 4', 'resolved 4'
+              'process 3', 'resolved 3' ]
+          else
+            [ 'process 1', 'resolved 1'
+              'process 2', 'resolved 2'
+              'process 3', 'resolved 3', 'started 4',
+              'process 4', 'resolved 4' ]
+          deepEqual call_order, co, 'call_order should be correct'
+          equal q.concurrency, concurrency,
+            "concurrency should be #{concurrency} in drain()"
+          equal q.length(), 0, 'queue should be length 0 in drain()'
+          resolve()
+        catch err
+          reject err
 
-    Q.all [push1, push2, push3, push4, drain.promise]
+    Q.all [push1, push2, push3, push4, drain]
 
   it 'returns proper results', -> testQueue 2
 
@@ -915,13 +917,13 @@ describe 'queue()', ->
     results = []
     q = async.queue (({name}) -> throw 'fooError' if name is 'foo'), 2
 
-    drain = Q.defer()
-    q.on 'drain', -> process.nextTick ->
-      try
-        deepEqual results, ['bar', 'fooError']
-        drain.resolve()
-      catch err
-        drain.reject(err)
+    drain = Q.promise (resolve, reject) ->
+      q.on 'drain', -> process.nextTick ->
+        try
+          deepEqual results, ['bar', 'fooError']
+          resolve()
+        catch err
+          reject err
 
     push1 = q.push(name: 'bar')
       .then(-> results.push 'bar')
@@ -931,7 +933,7 @@ describe 'queue()', ->
       .then(-> results.push 'foo')
       .catch(-> results.push 'fooError')
 
-    Q.all [drain.promise, push1, push2]
+    Q.all [drain, push1, push2]
 
   it 'allows concurrency change', -> testQueue(2, 1)
 

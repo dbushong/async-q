@@ -30,7 +30,7 @@ async.every(fetchPages(), isPageinDB)
   .done()
 ```
 
-If I had to pick the most useful from this set, that are more annoying to 
+If I had to pick the most useful from this set, that are more annoying to
 implement with vanilla Q, I'd say:
 
 * [series](#series)
@@ -161,11 +161,11 @@ processing. This means the iterator functions will complete in order.
 <a name="eachLimit" />
 ### eachLimit(arr, limit, iterator)
 
-The same as `each` only no more than "limit" iterators will be simultaneously 
+The same as `each` only no more than "limit" iterators will be simultaneously
 running at any time.
 
 Note that the items are not processed in batches, so there is no guarantee that
- the first "limit" iterator functions will complete before any others are 
+ the first "limit" iterator functions will complete before any others are
 started.
 
 __Arguments__
@@ -243,11 +243,11 @@ processing. The results array will be in the same order as the original.
 <a name="mapLimit" />
 ### mapLimit(arr, limit, iterator)
 
-The same as map only no more than "limit" iterators will be simultaneously 
+The same as map only no more than "limit" iterators will be simultaneously
 running at any time.
 
 Note that the items are not processed in batches, so there is no guarantee that
-the first "limit" iterator functions will complete before any others are 
+the first "limit" iterator functions will complete before any others are
 started.
 
 __Arguments__
@@ -374,7 +374,7 @@ Same as reduce, only operates on the items in the array in reverse order.
 ### detect(arr, iterator)
 
 Returns a promise for the first value in a list that passes an async truth test.
-The iterator is applied in parallel, meaning the first iterator to return true 
+The iterator is applied in parallel, meaning the first iterator to return true
 will resolve the promise with that result. That means the result might not be
 the first item in the original array (in terms of order) that passes the test.
 
@@ -622,7 +622,7 @@ The same as parallel only the tasks are executed in parallel with a maximum of
 "limit" tasks executing at any time.  Returns a promise for an array or object,
 depending on which was passed.
 
-Note that the tasks are not executed in batches, so there is no guarantee that 
+Note that the tasks are not executed in batches, so there is no guarantee that
 the first "limit" tasks will complete before any others are started.
 
 __Arguments__
@@ -811,8 +811,10 @@ The queue object returned by this function is an EventEmitter:
 ###### Functions
 
 * length() - a function returning the number of items waiting to be processed.
-* push(task) - add a new task to the queue and return a promise which is 
-  resolved once the worker has finished processing the task.
+* push(task) - add a new task to the queue and return a promise which is
+  resolved once the worker has finished processing the task.  The promise
+  object returned also contains a `start` property, which is a promise which
+  is resolved when the task is started.
   Instead of a single task, an array of tasks can be submitted and an array
   of promises will be returned which can be individually handled or bundled
   with `Q.all()`
@@ -832,7 +834,7 @@ You may receive events with `queueObj.on 'foo', -> ...`
   tasks will be queued
 * empty - emitted when the last item from the queue is given to a worker
 * drain - emitted when the last item from the queue has returned from the worker
-          NOTE: actions contigent on the promise returned from the 
+          NOTE: actions contigent on the promise returned from the
           `push/unshift()` that queued the final task will not have finished
           when the drain event is fired; if you wish to run after that,
           do something like: `queueObj.on 'drain', -> process.nextTick -> ...`
@@ -870,7 +872,21 @@ Q.all(q.push([{name: 'baz'},{name: 'bay'},{name: 'bax'}]))
 q.unshift(name: 'garply')
   .then(-> console.log 'finished processing garply')
   .done()
+
+##### Example using `.start` promise return from `push()`
+
+```coffee
+### if you didn't block on start, you'd create a huge array and die ###
+q = async.queue ((n) -> Q.delay(n*10000).thenResolve(n)), 10
+
+### imagine this is an async line-reader.eachLine() call or something ###
+async.whilst (-> true), ->
+  ### print the result once task is done ###
+  (res = q.push Math.random()).then (n) -> console.log "waited #{n}ms"
+  ### only continue the loop when the task is started ###
+  res.start
 ```
+
 
 ---------------------------------------
 
@@ -916,7 +932,7 @@ You may receive events with `cargoObj.on 'foo', -> ...`
   tasks will be queued
 * empty - emitted when the last item from the queue is given to a worker
 * drain - emitted when the last item from the queue has returned from the worker
-          NOTE: actions contigent on the promise returned from the 
+          NOTE: actions contigent on the promise returned from the
           `push()` that queued the final task will not have finished
           when the drain event is fired; if you wish to run after that,
           do something like: `cargoObj.on 'drain', -> process.nextTick -> ...`
@@ -955,7 +971,7 @@ __Arguments__
 
 * tasks - An object literal containing named functions or an array of
   requirements, with the function itself the last item in the array. The key
-  used for each function or array is used when specifying requirements. The 
+  used for each function or array is used when specifying requirements. The
   function receives a results object, containing the results of
   the previously executed functions, keyed by their name.
 
@@ -972,7 +988,7 @@ async.auto({
   write_file: [
     'get_data'
     'make_folder'
-    -> 
+    ->
       ### once there is some data and the directory exists,
           write the data to a file in the directory ###
       filename

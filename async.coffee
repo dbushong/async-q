@@ -195,10 +195,14 @@ module.exports = async =
       gotArray = data.constructor is Array
       data     = [data] unless gotArray
       promises = data.map (task) ->
-        tasks[op] data: task, defer: (d=Q.defer())
+        start  = Q.defer()
+        finish = Q.defer()
+        finish.promise.start = start.promise
+        tasks[op] { data: task, start, finish }
         q.emit 'saturated' if tasks.length is q.concurrency
         process.nextTick q.process
-        d.promise
+        finish.promise
+
       if gotArray then promises else promises[0]
 
     workers = 0
@@ -212,13 +216,15 @@ module.exports = async =
       process: ->
         if workers < q.concurrency and tasks.length
           task = tasks.shift()
+          task.start.resolve()
           q.emit 'empty' if tasks.length is 0
           workers++
           Q.try(worker, task.data)
-            .catch(task.defer.reject.bind task.defer)
+            .catch (e) ->
+              task.finish.reject e
             .then (res) ->
               workers--
-              task.defer.resolve res
+              task.finish.resolve res
               q.emit 'drain' if tasks.length + workers is 0
               q.process()
 
