@@ -872,6 +872,7 @@ Q.all(q.push([{name: 'baz'},{name: 'bay'},{name: 'bax'}]))
 q.unshift(name: 'garply')
   .then(-> console.log 'finished processing garply')
   .done()
+```
 
 ##### Example using `.start` promise return from `push()`
 

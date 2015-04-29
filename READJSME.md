@@ -949,16 +949,31 @@ q.unshift({
 }).then(function() {
   return console.log('finished processing garply');
 }).done();
-```coffee
-### if you didn't block on start, you'd create a huge array and die ###
-q = async.queue ((n) -> Q.delay(n*10000).thenResolve(n)), 10
+```
 
-### imagine this is an async line-reader.eachLine() call or something ###
-async.whilst (-> true), ->
-  ### print the result once task is done ###
-  (res = q.push Math.random()).then (n) -> console.log "waited #{n}ms"
-  ### only continue the loop when the task is started ###
-  res.start
+##### Example using `.start` promise return from `push()`
+
+```js
+// if you didn't block on start, you'd create a huge array and die
+var q;
+
+q = async.queue((function(n) {
+  return Q.delay(n * 10000).thenResolve(n);
+}), 10);
+
+// imagine this is an async line-reader.eachLine() call or something
+
+async.whilst((function() {
+  return true;
+}), function() {
+  // print the result once task is done
+  var res;
+  (res = q.push(Math.random())).then(function(n) {
+    return console.log("waited " + n + "ms");
+  });
+  // only continue the loop when the task is started
+  return res.start;
+});
 ```
 
 
