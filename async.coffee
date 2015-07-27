@@ -94,7 +94,7 @@ module.exports = async =
       if ok
         arr[0]
       else
-        async.detectSeries arr[1..], iterator
+        async.detectSeries arr[1..], iterator, _notFound
 
   # [a] -> (a -> P b) -> [a]
   # basically a swartzian transform
