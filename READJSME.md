@@ -383,8 +383,8 @@ the first item in the original array (in terms of order) that passes the test.
 
 If order within the original array is important then look at detectSeries.
 
-Note: the above is currently false; this function is currently just `filter()`
-+ `.get(0)`, but this should probably eventually change.
+Note: the above is currently false; this function is currently just
+`filter() + .get(0)`, but this should probably eventually change.
 
 __Arguments__
 
