@@ -90,7 +90,7 @@ module.exports = async =
 
   detectSeries: Q.promised (arr, iterator, _notFound=undefined) ->
     return Q _notFound if arr.length is 0
-    iterator(arr[0]).then (ok) ->
+    Q(iterator(arr[0])).then (ok) ->
       if ok
         arr[0]
       else
