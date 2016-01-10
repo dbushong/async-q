@@ -1,7 +1,7 @@
 async = require './'
 Q     = require 'q'
 
-require('mocha-as-promised')()
+require('mocha')
 chai = require 'chai'
 chai.use require 'chai-as-promised'
 { assert: { strictEqual: equal, deepEqual, isRejected, fail, becomes, ok }

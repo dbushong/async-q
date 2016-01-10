@@ -15,7 +15,7 @@ $(BIN)/%:
 
 test: $(BIN)/mocha index.js
 	$(BIN)/mocha \
-	  --compilers coffee:coffee-script \
+	  --compilers coffee:coffee-script/register \
 	  --reporter spec test.coffee \
 	  --slow 1000
 
