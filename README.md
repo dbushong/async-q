@@ -588,8 +588,8 @@ all.
 
 __Arguments__
 
-* tasks - An array or object containing functions to run, each function
-  should return a promise for an optional value.
+* tasks - An array, object containing functions to run (each function
+  should return a promise for an optional value), or an object containing promises that resolve a value
 
 __Example__
 
@@ -603,7 +603,7 @@ async.parallel([
     doStuff()
   .done()
 
-### an example using an object instead of an array ###
+### an example using an object of functions instead of an array ###
 async.parallel({
   one: -> Q.delay(200).thenResolve(1)
   two: -> Q.delay(100).thenResolve(2)
@@ -611,6 +611,15 @@ async.parallel({
     ### results is now equals to: {one: 1, two: 2} ###
     doStuff()
   .done()
+  
+### an example using an object of promises instead of an array ###
+async.parallel({
+one: Q.delay(200).thenResolve(1)
+two: Q.delay(100).thenResolve(2)
+}).then (results) ->
+  ### results is now equals to: {one: 1, two: 2} ###
+  doStuff()
+.done()
 ```
 
 ---------------------------------------
