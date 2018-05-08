@@ -1,5 +1,17 @@
 # Async.js for Q [![Build Status](https://travis-ci.org/dbushong/async-q.png?branch=master)](https://travis-ci.org/dbushong/async-q) [![Dependency Status](https://david-dm.org/dbushong/async-q.png?theme=shields.io)](https://david-dm.org/dbushong/async-q)
 
+## Unmaintained
+
+Native Promise support combined with async/await, means 90% of this is unnecessary.
+There are a number of Promise pooling libraries that serve that last 10% for things
+like `queue()` and `mapLimit()`, such as 
+[`promise-queue`](https://www.npmjs.com/package/promise-queue) and
+[`es6-promise-pool`](https://www.npmjs.com/package/es6-promise-pool).
+
+If you don't care and don't need support, keep on reading:
+
+---
+
 Promises with [Q](http://github.com/kriskowal/q) are awesome.  However,
 there's a lot of existing code done using callback-oriented structures.
 Much of this probably would have collapsed under its own weight long ago were
