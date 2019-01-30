@@ -141,7 +141,11 @@ module.exports = async =
       ).then(-> results)
 
   parallel: Q.promised (tasks) ->
-    processArrayOrObject tasks, (arr) -> Q.all arr.map Q.try
+    processArrayOrObject tasks, (arr) -> Q.all arr.map (task) ->
+      if task.then
+       task
+      else
+        Q.try task
 
   parallelLimit: Q.promised (tasks, limit) ->
     processArrayOrObject tasks, (arr) ->

@@ -265,6 +265,15 @@ describe 'parallel()', ->
       /^error1$/
     )
 
+  it 'accepts an object of promises', ->
+    obj =
+      one: Q.delay(125).thenResolve 1
+      two: Q.delay(200).thenResolve 2
+      three: Q.delay(50).thenResolve [3,3]
+
+    async.parallel(obj).then (results) ->
+      deepEqual results, one: 1, two: 2, three: [3, 3]
+
   it 'accepts an object', ->
     call_order = []
     async.parallel(getFunctionsObject call_order).then (results) ->
